@@ -44,9 +44,58 @@ from qwen_tts import Qwen3TTSModel
 HOST = os.getenv("QWEN_TTS_HOST", "0.0.0.0")
 PORT = int(os.getenv("QWEN_TTS_PORT", "8000"))
 
-CUSTOM_VOICE_MODEL = os.getenv("QWEN_CUSTOM_VOICE_MODEL", "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice")
-VOICE_DESIGN_MODEL = os.getenv("QWEN_VOICE_DESIGN_MODEL", "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign")
-VOICE_CLONE_MODEL  = os.getenv("QWEN_VOICE_CLONE_MODEL",  "Qwen/Qwen3-TTS-12Hz-1.7B-Base")
+# VRAM auto-detection and model sizing
+def _detect_vram_gb() -> float:
+    """Detect available VRAM in GB. Returns 0.0 if no CUDA GPU."""
+    if not torch.cuda.is_available():
+        return 0.0
+    try:
+        total_bytes = torch.cuda.get_device_properties(0).total_memory
+        return total_bytes / (1024 ** 3)
+    except Exception:
+        return 0.0
+
+
+def _auto_select_models(vram_gb: float) -> tuple[str, str, str]:
+    """
+    Auto-select model sizes based on available VRAM.
+    Returns (custom_voice, voice_design, voice_clone) model IDs.
+    """
+    if vram_gb >= 12.0:
+        return (
+            "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+            "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+            "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+        )
+    elif vram_gb >= 8.0:
+        # 8-11 GB: use 0.6B for all to stay safe
+        return (
+            "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+            "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+            "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        )
+    elif vram_gb >= 6.0:
+        # 6-7 GB: 0.6B for all
+        return (
+            "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+            "Qwen/Qwen3-TTS-12Hz-0.6B-VoiceDesign",
+            "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        )
+    else:
+        # < 6 GB or CPU: 0.6B is the safest bet
+        return (
+            "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+            "Qwen/Qwen3-TTS-12Hz-0.6B-VoiceDesign",
+            "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        )
+
+
+_vram_gb = _detect_vram_gb()
+_auto_cv, _auto_vd, _auto_vc = _auto_select_models(_vram_gb)
+
+CUSTOM_VOICE_MODEL = os.getenv("QWEN_CUSTOM_VOICE_MODEL", _auto_cv)
+VOICE_DESIGN_MODEL = os.getenv("QWEN_VOICE_DESIGN_MODEL", _auto_vd)
+VOICE_CLONE_MODEL  = os.getenv("QWEN_VOICE_CLONE_MODEL",  _auto_vc)
 
 LAZY_TIMEOUT = int(os.getenv("QWEN_LAZY_TIMEOUT_SECONDS", "300"))  # 5 minutos
 
@@ -192,12 +241,33 @@ def _auto_unload_worker():
 async def lifespan(app: FastAPI):
     global custom_voice_model
 
-    print(f"[INIT] Cargando CustomVoice (hot): {CUSTOM_VOICE_MODEL} en {DEVICE_GPU}")
+    # VRAM report
+    if _vram_gb > 0:
+        print(f"[INIT] GPU detectada: {torch.cuda.get_device_name(0)}")
+        print(f"[INIT] VRAM total: {_vram_gb:.1f} GB")
+        if _vram_gb < 12.0:
+            print(f"[INIT] VRAM insuficiente para modelos 1.7B. Usando modelos 0.6B.")
+            print(f"[INIT] Para forzar modelos 1.7B, setea QWEN_CUSTOM_VOICE_MODEL manualmente.")
+    else:
+        print("[INIT] No se detecto GPU CUDA. Modo CPU activo.")
+        print("[INIT] Usando modelos 0.6B por defecto (mas rapidos en CPU).")
+        print("[INIT] Para forzar GPU, verifica que PyTorch CUDA este instalado.")
+
+    print(f"[INIT] Modelos seleccionados:")
+    print(f"[INIT]   CustomVoice:  {CUSTOM_VOICE_MODEL}")
+    print(f"[INIT]   VoiceDesign:  {VOICE_DESIGN_MODEL}")
+    print(f"[INIT]   Base/Clone:   {VOICE_CLONE_MODEL}")
+
+    device = DEVICE_GPU if _vram_gb > 0 else "cpu"
+    dtype = torch.bfloat16 if device.startswith("cuda") else torch.float32
+    attn = "sdpa" if device.startswith("cuda") else "eager"
+
+    print(f"[INIT] Cargando CustomVoice (hot): {CUSTOM_VOICE_MODEL} en {device}")
     custom_voice_model = Qwen3TTSModel.from_pretrained(
         CUSTOM_VOICE_MODEL,
-        device_map=DEVICE_GPU,
-        dtype=torch.bfloat16,
-        attn_implementation="sdpa",
+        device_map=device,
+        dtype=dtype,
+        attn_implementation=attn,
     )
     print("[INIT] CustomVoice listo.")
 

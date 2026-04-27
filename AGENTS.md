@@ -72,6 +72,24 @@ docker run --gpus all -p 8000:8000 qwen-tts-server
 
 Base image: `nvidia/cuda:12.6.0-runtime-ubuntu22.04`. Requires NVIDIA Container Toolkit for GPU passthrough.
 
+## VRAM Auto-Detection
+
+On startup, the server detects available VRAM and **automatically selects model sizes**:
+
+| VRAM Available | Models Selected | Approx. Usage |
+|----------------|----------------|---------------|
+| **≥ 12 GB** | 1.7B for all three | ~11 GB peak |
+| **8 – 11 GB** | 0.6B CustomVoice + Base, 1.7B VoiceDesign | ~8 GB peak |
+| **6 – 7 GB** | 0.6B for all three | ~6 GB peak |
+| **< 6 GB or CPU** | 0.6B for all three | ~4-5 GB RAM |
+
+To override auto-detection, set the env vars manually:
+```bash
+QWEN_CUSTOM_VOICE_MODEL=Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice
+QWEN_VOICE_DESIGN_MODEL=Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign
+QWEN_VOICE_CLONE_MODEL=Qwen/Qwen3-TTS-12Hz-1.7B-Base
+```
+
 ## Common Pitfalls
 
 - **Do not run on < 12 GB VRAM** with the default 1.7B models. Use 0.6B variants via env vars if constrained.
