@@ -32,7 +32,9 @@ class TestModels:
         assert data["object"] == "list"
         assert len(data["data"]) == 3
         model_ids = [m["id"] for m in data["data"]]
-        assert "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice" in model_ids
+        assert any("CustomVoice" in m for m in model_ids)
+        assert any("VoiceDesign" in m for m in model_ids)
+        assert any("Base" in m for m in model_ids)
 
 
 class TestVoices:

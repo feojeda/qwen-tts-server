@@ -66,14 +66,19 @@ QWEN_LAZY_TIMEOUT_SECONDS=300   # auto-unload idle lazy models
 ## Testing
 
 ```powershell
-# Unit tests (schemas, endpoints, no model loading)
+# Unit tests (schemas, endpoints, no model loading — fast)
 .\venv\Scripts\python.exe -m pytest tests\ -v
 
 # Integration tests (require ~12 GB VRAM, several minutes each)
-.\venv\Scripts\python.exe -m pytest tests\ -v --run-integration
+.\venv\Scripts\python.exe -m pytest tests\test_integration.py -v --run-integration
 ```
 
-Integration tests are marked `@pytest.mark.skip` by default because they trigger HuggingFace downloads and GPU model loads.
+| Test suite | Files | Model loading | Speed | Runs in CI |
+|-----------|-------|---------------|-------|-----------|
+| **Unit** | `test_*.py` except `test_integration.py` | Mocked (no downloads) | ~0.5s | ✅ Yes |
+| **Integration** | `test_integration.py` only | Real models from HuggingFace | ~5-15 min | ❌ No |
+
+Integration tests are marked `@pytest.mark.integration` and are **skipped by default**. They load real Qwen3-TTS models, download weights on first run, and generate actual audio. Only run them locally when you want to verify end-to-end behavior with real hardware.
 
 ## Docker
 

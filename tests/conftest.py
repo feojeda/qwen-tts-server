@@ -2,7 +2,7 @@
 
 import os
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
@@ -12,17 +12,44 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-# ---------------------------------------------------------------------------
-# Mock Qwen3TTSModel globally before any test imports app/* modules.
-# This prevents HuggingFace downloads during test collection & execution.
-# ---------------------------------------------------------------------------
-_mock_model_cls = MagicMock()
-_mock_instance = MagicMock()
-_mock_instance.get_supported_speakers.return_value = ["Vivian", "Alex"]
-_mock_instance.get_supported_languages.return_value = ["English", "Spanish"]
-_mock_model_cls.from_pretrained.return_value = _mock_instance
 
-sys.modules["qwen_tts"] = MagicMock(Qwen3TTSModel=_mock_model_cls)
+def pytest_addoption(parser):
+    parser.addoption(
+        "--run-integration",
+        action="store_true",
+        default=False,
+        help="Run integration tests that load real AI models (slow, requires GPU or CPU patience)",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    skip_integration = pytest.mark.skip(
+        reason="Integration test: run with --run-integration (requires model loading)"
+    )
+    for item in items:
+        if "integration" in item.keywords:
+            if not config.getoption("--run-integration"):
+                item.add_marker(skip_integration)
+
+
+# ---------------------------------------------------------------------------
+# Mock Qwen3TTSModel globally BEFORE importing app/* modules — but ONLY when
+# integration tests are NOT requested. When --run-integration is passed we
+# leave qwen_tts untouched so the real model loads.
+# ---------------------------------------------------------------------------
+_integration_mode = False
+for arg in sys.argv:
+    if arg == "--run-integration":
+        _integration_mode = True
+        break
+
+if not _integration_mode:
+    _mock_model_cls = MagicMock()
+    _mock_instance = MagicMock()
+    _mock_instance.get_supported_speakers.return_value = ["Vivian", "Alex"]
+    _mock_instance.get_supported_languages.return_value = ["English", "Spanish"]
+    _mock_model_cls.from_pretrained.return_value = _mock_instance
+    sys.modules["qwen_tts"] = MagicMock(Qwen3TTSModel=_mock_model_cls)
 
 # Now safe to import the FastAPI app
 from main import app as fastapi_app  # noqa: E402
@@ -45,4 +72,6 @@ def mock_wav():
 @pytest.fixture
 def mock_model():
     """Return the mocked Qwen3TTSModel instance for configuring return values."""
-    return _mock_instance
+    if not _integration_mode:
+        return _mock_instance
+    pytest.skip("mock_model fixture is only available in unit-test mode")
