@@ -233,21 +233,18 @@ pytest tests/test_integration.py -v --run-integration
 | 变量 | 默认值（已覆盖） | 项目位置 |
 |----------|---------------------|------------------|
 | `HF_HOME` | `~/.cache/huggingface` | `./cache/hf/` |
-| `TRANSFORMERS_CACHE` | 同上 | 同上 |
 
 **`start.bat`** 和 **`start.sh`** 会自动设置。如果手动运行 `main.py`，请自行设置：
 
 ```powershell
 # Windows
 $env:HF_HOME="E:\qwentts\cache\hf"
-$env:TRANSFORMERS_CACHE="E:\qwentts\cache\hf"
 .\venv\Scripts\python.exe main.py
 ```
 
 ```bash
 # Linux/Mac
 export HF_HOME="/path/to/qwen-tts-server/cache/hf"
-export TRANSFORMERS_CACHE="$HF_HOME"
 ./venv/bin/python main.py
 ```
 

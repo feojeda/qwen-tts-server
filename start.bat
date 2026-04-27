@@ -5,9 +5,6 @@ REM Set HuggingFace cache to project folder (E: drive) instead of C:
 set "SCRIPT_DIR=%~dp0"
 set "HF_HOME=%SCRIPT_DIR%cache\hf"
 
-REM Also set TRANSFORMERS_CACHE for older libraries
-set "TRANSFORMERS_CACHE=%HF_HOME%"
-
 echo ==========================================
 echo    Qwen3-TTS API Server
 echo ==========================================

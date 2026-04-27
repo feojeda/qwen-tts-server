@@ -3,7 +3,6 @@
 # Set HuggingFace cache to project folder instead of ~/.cache
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export HF_HOME="${SCRIPT_DIR}/cache/hf"
-export TRANSFORMERS_CACHE="${HF_HOME}"
 
 echo "=========================================="
 echo "   Qwen3-TTS API Server"

@@ -7,23 +7,10 @@ These tests are SKIPPED by default. To run them locally:
 Requirements:
   - ~12 GB VRAM for 1.7B models (or ~6 GB for 0.6B models on CPU)
   - First run downloads ~3.4 GB from HuggingFace (cached afterwards)
-  - Patience: each test takes 30-120s depending on hardware
+  - Patience: first run can take 10-20 min depending on connection speed
 """
 
-import os
-import sys
-
-# Ensure project root is on sys.path
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
-
 import pytest
-from fastapi.testclient import TestClient
-
-# Import the real app (NO mocking of qwen_tts here — conftest skips mocks
-# when --run-integration is passed).
-from main import app as fastapi_app
 
 # A short reference audio + transcript provided by the Qwen3-TTS project.
 REF_AUDIO_URL = (
@@ -32,31 +19,14 @@ REF_AUDIO_URL = (
 )
 REF_TEXT = "Okay. Yeah. I resent you. I love you. I respect you."
 
-client = TestClient(fastapi_app)
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-def _wait_for_model():
-    """Simple health poll until CustomVoice is loaded."""
-    import time
-    for _ in range(30):
-        resp = client.get("/health")
-        if resp.json()["models_loaded"]["custom_voice"]:
-            return
-        time.sleep(1)
-    raise RuntimeError("CustomVoice did not load in time")
-
 
 # ---------------------------------------------------------------------------
 # Integration tests
 # ---------------------------------------------------------------------------
 @pytest.mark.integration
 class TestCustomVoiceIntegration:
-    def test_generate_speech(self):
+    def test_generate_speech(self, client):
         """Generate real audio with CustomVoice."""
-        _wait_for_model()
         response = client.post("/v1/audio/speech", json={
             "model": "qwen3-tts",
             "input": "Hello, this is a real integration test.",
@@ -68,9 +38,8 @@ class TestCustomVoiceIntegration:
         assert len(response.content) > 0
         assert response.headers["content-type"] == "audio/wav"
 
-    def test_list_real_voices(self):
+    def test_list_real_voices(self, client):
         """List voices from the actually loaded model."""
-        _wait_for_model()
         response = client.get("/v1/audio/voices")
         assert response.status_code == 200
         data = response.json()
@@ -81,7 +50,7 @@ class TestCustomVoiceIntegration:
 
 @pytest.mark.integration
 class TestVoiceCloneIntegration:
-    def test_create_and_generate_prompt(self):
+    def test_create_and_generate_prompt(self, client):
         """Create a voice clone prompt from reference audio, then generate speech."""
         # 1. Create prompt
         prompt_resp = client.post("/v1/audio/voice-clone/prompt", json={
@@ -106,7 +75,7 @@ class TestVoiceCloneIntegration:
         assert gen_resp.status_code == 200
         assert len(gen_resp.content) > 0
 
-    def test_generate_direct(self):
+    def test_generate_direct(self, client):
         """Direct voice clone without pre-computing a prompt."""
         resp = client.post("/v1/audio/voice-clone", json={
             "model": "qwen3-tts",
@@ -122,7 +91,7 @@ class TestVoiceCloneIntegration:
 
 @pytest.mark.integration
 class TestVoiceDesignIntegration:
-    def test_generate_voice_design(self):
+    def test_generate_voice_design(self, client):
         """Generate audio with VoiceDesign (lazy model load)."""
         resp = client.post("/v1/audio/voice-design", json={
             "model": "qwen3-tts",
@@ -137,9 +106,8 @@ class TestVoiceDesignIntegration:
 
 @pytest.mark.integration
 class TestHealthIntegration:
-    def test_health_shows_loaded_models(self):
+    def test_health_shows_loaded_models(self, client):
         """Health endpoint reflects actually loaded models."""
-        _wait_for_model()
         resp = client.get("/health")
         assert resp.status_code == 200
         data = resp.json()

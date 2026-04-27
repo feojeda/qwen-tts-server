@@ -87,21 +87,18 @@ By default, HuggingFace downloads models to the user's home directory (`~/.cache
 | Variable | Default (overridden) | Project location |
 |----------|---------------------|------------------|
 | `HF_HOME` | `~/.cache/huggingface` | `./cache/hf/` |
-| `TRANSFORMERS_CACHE` | same as above | same as above |
 
-**`start.bat`** and **`start.sh`** set these automatically. If you run `main.py` manually, set them yourself:
+**`start.bat`** and **`start.sh`** set this automatically. If you run `main.py` manually, set it yourself:
 
 ```powershell
 # Windows
 $env:HF_HOME="E:\qwentts\cache\hf"
-$env:TRANSFORMERS_CACHE="E:\qwentts\cache\hf"
 .\venv\Scripts\python.exe main.py
 ```
 
 ```bash
 # Linux/Mac
 export HF_HOME="/path/to/qwen-tts-server/cache/hf"
-export TRANSFORMERS_CACHE="$HF_HOME"
 ./venv/bin/python main.py
 ```
 
