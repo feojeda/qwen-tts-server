@@ -13,6 +13,7 @@ earlier version.
 
 import io
 import base64
+import pickle
 import time
 import threading
 from typing import Optional, Any
@@ -50,16 +51,17 @@ shutdown_flag = threading.Event()
 # Prompt serialization helpers (stateless)
 # ---------------------------------------------------------------------------
 def _serialize_prompt(items: Any) -> str:
-    buf = io.BytesIO()
-    torch.save(items, buf)
-    buf.seek(0)
-    return base64.b64encode(buf.read()).decode("utf-8")
+    """Serialize voice clone prompt to base64 using pickle.
+
+    pickle is used instead of torch.save to avoid torch reimport issues
+    during testing and because PyTorch tensors are picklable anyway.
+    """
+    return base64.b64encode(pickle.dumps(items)).decode("utf-8")
 
 
 def _deserialize_prompt(b64_string: str) -> Any:
-    raw = base64.b64decode(b64_string.encode("utf-8"))
-    buf = io.BytesIO(raw)
-    return torch.load(buf, weights_only=False)
+    """Deserialize voice clone prompt from base64."""
+    return pickle.loads(base64.b64decode(b64_string.encode("utf-8")))
 
 
 # ---------------------------------------------------------------------------

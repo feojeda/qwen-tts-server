@@ -1,42 +1,71 @@
 """
 Tests for qwen-tts-server API endpoints.
 Run with: pytest tests/ -v
+
+Unit tests only — no model downloading, no GPU required.
 """
 
+import io
+import base64
+import pickle
 import pytest
+from unittest.mock import MagicMock, patch
+import numpy as np
+
+# ---------------------------------------------------------------------------
+# Mock Qwen3TTSModel BEFORE importing the app to prevent lifespan from
+# downloading models during TestClient startup.
+# ---------------------------------------------------------------------------
+_mock_model_cls = MagicMock()
+_mock_instance = MagicMock()
+_mock_instance.get_supported_speakers.return_value = ["Vivian", "Alex"]
+_mock_instance.get_supported_languages.return_value = ["English", "Spanish"]
+_mock_model_cls.from_pretrained.return_value = _mock_instance
+
+with patch.dict("sys.modules", {"qwen_tts": MagicMock(Qwen3TTSModel=_mock_model_cls)}):
+    from main import app as fastapi_app
+    import app.models
+
+
+
 from fastapi.testclient import TestClient
 
-# We need to import the FastAPI app instance.
-# Since main.py runs uvicorn when __name__ == '__main__', we can import `app` directly.
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from main import app
+@pytest.fixture
+def client():
+    """Yield a TestClient with lifespan entered (model loaded)."""
+    with TestClient(fastapi_app) as c:
+        yield c
 
-client = TestClient(app)
+
+@pytest.fixture
+def mock_wav():
+    """Return a fake mono WAV array."""
+    return np.zeros(16000, dtype=np.float32), 16000
 
 
 # ---------------------------------------------------------------------------
-# Basic endpoint tests (no model loading required)
+# Basic endpoints
 # ---------------------------------------------------------------------------
-def test_root():
+def test_root(client):
     response = client.get("/")
     assert response.status_code == 200
     data = response.json()
     assert "message" in data
     assert "endpoints" in data
+    assert "stateless_voice_clone_prompts" in data
 
 
-def test_health():
+def test_health(client):
     response = client.get("/health")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
     assert "models_loaded" in data
+    assert data["models_loaded"]["custom_voice"] is True
 
 
-def test_list_models():
+def test_list_models(client):
     response = client.get("/v1/models")
     assert response.status_code == 200
     data = response.json()
@@ -46,37 +75,53 @@ def test_list_models():
     assert "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice" in model_ids
 
 
+def test_list_voices(client):
+    response = client.get("/v1/audio/voices")
+    assert response.status_code == 200
+    data = response.json()
+    assert "voices" in data
+    assert "languages" in data
+    assert "Vivian" in data["voices"]
+
+
 # ---------------------------------------------------------------------------
-# Schema validation tests
+# Schema validation (Pydantic should reject missing required fields)
 # ---------------------------------------------------------------------------
-def test_create_speech_schema_invalid():
-    """POST /v1/audio/speech with missing required fields should fail."""
+def test_create_speech_schema_invalid(client):
     response = client.post("/v1/audio/speech", json={})
     assert response.status_code == 422
 
 
-def test_voice_clone_prompt_schema_invalid():
-    """POST /v1/audio/voice-clone/prompt with missing fields should fail."""
+def test_voice_design_schema_invalid(client):
+    response = client.post("/v1/audio/voice-design", json={})
+    assert response.status_code == 422
+
+
+def test_voice_clone_schema_invalid(client):
+    response = client.post("/v1/audio/voice-clone", json={})
+    assert response.status_code == 422
+
+
+def test_voice_clone_prompt_schema_invalid(client):
     response = client.post("/v1/audio/voice-clone/prompt", json={})
     assert response.status_code == 422
 
 
-def test_generate_from_prompt_schema_invalid():
-    """POST /v1/audio/voice-clone/generate with missing fields should fail."""
+def test_generate_from_prompt_schema_invalid(client):
     response = client.post("/v1/audio/voice-clone/generate", json={})
     assert response.status_code == 422
 
 
 # ---------------------------------------------------------------------------
-# Content negotiation tests
+# Docs / OpenAPI
 # ---------------------------------------------------------------------------
-def test_docs_endpoint():
+def test_docs_endpoint(client):
     response = client.get("/docs")
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
 
 
-def test_openapi_json():
+def test_openapi_json(client):
     response = client.get("/openapi.json")
     assert response.status_code == 200
     data = response.json()
@@ -84,17 +129,12 @@ def test_openapi_json():
 
 
 # ---------------------------------------------------------------------------
-# Note on integration tests with real models:
+# Speech generation (mocked)
 # ---------------------------------------------------------------------------
-# The following tests require GPU/CPU model loading and are skipped by default
-# because they take several minutes and need ~12 GB VRAM.
-#
-# To run them, use: pytest tests/ -v --run-integration
-# ---------------------------------------------------------------------------
+def test_create_speech_mocked(client, mock_wav):
+    wav, sr = mock_wav
+    _mock_instance.generate_custom_voice.return_value = ([wav], sr)
 
-@pytest.mark.skip(reason="Requires model loading, run manually with --run-integration")
-def test_speech_integration():
-    """Integration test: generate speech with CustomVoice model."""
     response = client.post("/v1/audio/speech", json={
         "model": "qwen3-tts",
         "input": "Hello world",
@@ -107,19 +147,86 @@ def test_speech_integration():
     assert response.headers["content-type"] == "audio/wav"
 
 
-@pytest.mark.skip(reason="Requires model loading, run manually with --run-integration")
-def test_voice_clone_prompt_integration():
-    """Integration test: create voice clone prompt."""
+# ---------------------------------------------------------------------------
+# Voice design (mocked)
+# ---------------------------------------------------------------------------
+def test_create_voice_design_mocked(client, mock_wav):
+    wav, sr = mock_wav
+    _mock_instance.generate_voice_design.return_value = ([wav], sr)
+
+    response = client.post("/v1/audio/voice-design", json={
+        "model": "qwen3-tts",
+        "input": "Hello world",
+        "instructions": "A calm female voice",
+        "language": "English",
+        "response_format": "wav",
+    })
+    assert response.status_code == 200
+    assert len(response.content) > 0
+
+
+# ---------------------------------------------------------------------------
+# Voice clone (mocked)
+# ---------------------------------------------------------------------------
+def test_create_voice_clone_mocked(client, mock_wav):
+    wav, sr = mock_wav
+    _mock_instance.generate_voice_clone.return_value = ([wav], sr)
+
+    response = client.post("/v1/audio/voice-clone", json={
+        "model": "qwen3-tts",
+        "input": "Hello world",
+        "ref_audio": "https://example.com/audio.wav",
+        "ref_text": "Hello world",
+        "language": "English",
+        "response_format": "wav",
+    })
+    assert response.status_code == 200
+    assert len(response.content) > 0
+
+
+# ---------------------------------------------------------------------------
+# Voice clone prompt (mocked)
+# ---------------------------------------------------------------------------
+def test_create_voice_clone_prompt_mocked(client):
+    fake_prompt = {"embedding": [0.1, 0.2]}
+    _mock_instance.create_voice_clone_prompt.return_value = fake_prompt
+
     response = client.post("/v1/audio/voice-clone/prompt", json={
-        "ref_audio": "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3-TTS-Repo/clone.wav",
-        "ref_text": "Okay. Yeah. I resent you. I love you. I respect you.",
+        "ref_audio": "https://example.com/audio.wav",
+        "ref_text": "Hello world",
         "x_vector_only_mode": False,
     })
     assert response.status_code == 200
     data = response.json()
     assert "voice_clone_prompt_b64" in data
     assert len(data["voice_clone_prompt_b64"]) > 0
+    # Verify roundtrip: the b64 should decode back to the fake prompt
+    decoded = pickle.loads(base64.b64decode(data["voice_clone_prompt_b64"]))
+    assert decoded == fake_prompt
 
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+# ---------------------------------------------------------------------------
+# Generate from prompt (mocked)
+# ---------------------------------------------------------------------------
+def test_generate_voice_clone_from_prompt_mocked(client, mock_wav):
+    wav, sr = mock_wav
+    _mock_instance.generate_voice_clone.return_value = ([wav], sr)
+
+    # First get a valid prompt via the prompt endpoint
+    fake_prompt = {"embedding": [0.1, 0.2]}
+    _mock_instance.create_voice_clone_prompt.return_value = fake_prompt
+    prompt_response = client.post("/v1/audio/voice-clone/prompt", json={
+        "ref_audio": "https://example.com/audio.wav",
+        "ref_text": "Hello world",
+    })
+    b64_prompt = prompt_response.json()["voice_clone_prompt_b64"]
+
+    response = client.post("/v1/audio/voice-clone/generate", json={
+        "model": "qwen3-tts",
+        "input": "Hello world",
+        "voice_clone_prompt_b64": b64_prompt,
+        "language": "English",
+        "response_format": "wav",
+    })
+    assert response.status_code == 200
+    assert len(response.content) > 0

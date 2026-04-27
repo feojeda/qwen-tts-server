@@ -31,10 +31,8 @@ from app.schemas import (
     ModelInfo,
     ModelList,
 )
+from app import models as app_models
 from app.models import (
-    custom_voice_model,
-    voice_design_model,
-    voice_clone_model,
     last_used,
     load_custom_voice,
     shutdown_models,
@@ -156,9 +154,9 @@ def health():
     return {
         "status": "ok",
         "models_loaded": {
-            "custom_voice": custom_voice_model is not None,
-            "voice_design": voice_design_model is not None,
-            "voice_clone": voice_clone_model is not None,
+            "custom_voice": app_models.custom_voice_model is not None,
+            "voice_design": app_models.voice_design_model is not None,
+            "voice_clone": app_models.voice_clone_model is not None,
         },
         "last_used": {
             "voice_design": last_used["voice_design"],
@@ -178,11 +176,11 @@ def list_models():
 
 @app.get("/v1/audio/voices")
 def list_voices():
-    if custom_voice_model is None:
+    if app_models.custom_voice_model is None:
         raise HTTPException(503, f"CustomVoice {_t('not_loaded')}")
     try:
-        speakers = custom_voice_model.get_supported_speakers()
-        languages = custom_voice_model.get_supported_languages()
+        speakers = app_models.custom_voice_model.get_supported_speakers()
+        languages = app_models.custom_voice_model.get_supported_languages()
         return {"voices": speakers, "languages": languages}
     except Exception as e:
         raise HTTPException(500, f"{_t('error_voices')}: {e}")
@@ -190,11 +188,11 @@ def list_voices():
 
 @app.post("/v1/audio/speech")
 def create_speech(body: CreateSpeechRequest):
-    if custom_voice_model is None:
+    if app_models.custom_voice_model is None:
         raise HTTPException(503, f"CustomVoice {_t('not_loaded')}")
     try:
         start = time.time()
-        wavs, sr = custom_voice_model.generate_custom_voice(
+        wavs, sr = app_models.custom_voice_model.generate_custom_voice(
             text=body.input,
             language=body.language or "Auto",
             speaker=body.voice,
