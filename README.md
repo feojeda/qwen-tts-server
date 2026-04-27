@@ -18,8 +18,8 @@ REST API for [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) with multi-model s
 ## Requirements
 
 - Python 3.12+
-- CUDA 12.6+ (for GPU)
-- ~12 GB VRAM (RTX 3060 or better recommended)
+- GPU (optional): Any NVIDIA GPU with **CUDA 12.6+** support and **~12 GB VRAM** (e.g., RTX 3060, RTX 4060, A100, etc.)
+- CPU mode works too, but generation is **10-30x slower**
 
 ## Installation
 
@@ -127,6 +127,19 @@ Base/Clone  (1.7B)  -> GPU LAZY  (~5.5 GB, exclusive)
 ```
 
 VoiceDesign and Base/Clone are **never loaded simultaneously**.
+
+### CPU Mode
+
+Set `QWEN_TTS_DEVICE=cpu` to run without a GPU. The server will work but expect significantly slower generation times:
+
+```bash
+# Windows
+$env:QWEN_TTS_DEVICE="cpu"
+.\venv\Scripts\python.exe main.py
+
+# Linux/Mac
+QWEN_TTS_DEVICE=cpu python main.py
+```
 
 ## Testing
 
