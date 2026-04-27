@@ -2,34 +2,34 @@
 
 <div align="center">
 
-**English** | [Español](README.es.md) | [简体中文](README.zh.md) | [日本語](README.ja.md)
+[English](README.md) | [Español](README.es.md) | **简体中文** | [日本語](README.ja.md)
 
 </div>
 
-REST API for [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) with multi-model support, VRAM lazy loading, and stateless voice clone prompts.
+[Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) 的 REST API，支持多模型、VRAM 懒加载和无状态语音克隆提示。
 
-## Why this project?
+## 为什么会有这个项目？
 
-I built this because I wanted to run **Qwen3-TTS locally** on my gaming PC with an **RTX 3060 (12 GB VRAM)**. The problem: loading all three 1.7B models simultaneously requires **~16.5 GB VRAM**, which simply doesn't fit. My solution was a **VRAM pool with lazy loading**: only one model stays hot on GPU, while the others load on demand and share the same VRAM space. This approach works perfectly for anyone with a **12 GB VRAM card** (RTX 3060, 4060, etc.) or even on **CPU with equivalent RAM** — no expensive GPU upgrade required.
+我开发这个项目是因为我想在我的游戏 PC 上**本地运行 Qwen3-TTS**，配置是 **RTX 3060（12 GB VRAM）**。问题在于：同时加载三个 1.7B 模型需要 **~16.5 GB VRAM**，根本放不下。我的解决方案是 **VRAM 池 + 懒加载**：只有一个模型常驻 GPU，其他模型按需加载并共享同一个 VRAM 空间。这种方式非常适合拥有 **12 GB VRAM 显卡**（RTX 3060、4060 等）的用户，甚至在 **同等 RAM 的 CPU 上** 也能运行 —— 无需昂贵的 GPU 升级。
 
-## Features
+## 功能特性
 
-- **3 models in a single server:**
-  - `CustomVoice` (1.7B) — Predefined voices, always on GPU
-  - `VoiceDesign` (1.7B) — Voice design by description, lazy loaded
-  - `Base/Clone` (1.7B) — Voice cloning, lazy loaded
-- **Lazy Loading + VRAM Pool:** Only CustomVoice stays on GPU. VoiceDesign and Base/Clone share VRAM and load on demand.
-- **Stateless Voice Clone Prompts:** Server holds no state. Prompts are serialized to base64 and stored by the client.
-- **OpenAI-compatible:** Endpoints under `/v1/audio/speech`, `/v1/models`, etc.
-- **Auto-unload:** Lazy models unload automatically after inactivity.
+- **单服务器运行 3 个模型：**
+  - `CustomVoice` (1.7B) — 预定义语音，常驻 GPU
+  - `VoiceDesign` (1.7B) — 通过描述设计语音，懒加载
+  - `Base/Clone` (1.7B) — 语音克隆，懒加载
+- **懒加载 + VRAM 池：** 只有 CustomVoice 常驻 GPU。VoiceDesign 和 Base/Clone 共享 VRAM，按需加载。
+- **无状态语音克隆提示：** 服务器不保存状态。提示序列化为 base64，由客户端存储。
+- **OpenAI 兼容：** 端点位于 `/v1/audio/speech`、`/v1/models` 等。
+- **自动卸载：** 懒加载模型在闲置后自动卸载。
 
-## Requirements
+## 系统要求
 
 - Python 3.12+
-- GPU (optional): Any NVIDIA GPU with **CUDA 12.6+** support and **~12 GB VRAM** (e.g., RTX 3060, RTX 4060, A100, etc.)
-- CPU mode works too, but generation is **10-30x slower**
+- GPU（可选）：任何支持 **CUDA 12.6+** 且拥有 **~12 GB VRAM** 的 NVIDIA GPU（如 RTX 3060、RTX 4060、A100 等）
+- CPU 模式也可用，但生成速度 **慢 10-30 倍**
 
-## Installation
+## 安装
 
 ```bash
 git clone <repo-url>
@@ -45,7 +45,7 @@ python -m venv venv
 # pip install -r requirements.txt
 ```
 
-## Usage
+## 使用方法
 
 ```bash
 # Windows
@@ -56,7 +56,7 @@ chmod +x start.sh
 ./start.sh
 ```
 
-Or manually:
+或手动运行：
 ```bash
 # Windows
 .\venv\Scripts\python.exe main.py
@@ -65,27 +65,27 @@ Or manually:
 ./venv/bin/python main.py
 ```
 
-Server listens on `http://0.0.0.0:8000` by default.
+服务器默认监听 `http://0.0.0.0:8000`。
 
-> **First run will download ~3.4 GB** (CustomVoice model) from HuggingFace. Subsequent startups are instant. Other models download on first use.
+> **首次运行将下载约 ~3.4 GB**（CustomVoice 模型）来自 HuggingFace。后续启动是即时的。其他模型在首次使用时下载。
 
-## Endpoints
+## API 端点
 
-| Endpoint | Method | Description |
+| 端点 | 方法 | 描述 |
 |----------|--------|-------------|
-| `/v1/audio/speech` | `POST` | TTS with predefined voice (OpenAI-compatible) |
-| `/v1/audio/voice-design` | `POST` | Voice design by description |
-| `/v1/audio/voice-clone` | `POST` | Voice cloning with reference audio |
-| `/v1/audio/voice-clone/prompt` | `POST` | Calculate reusable prompt (returns base64) |
-| `/v1/audio/voice-clone/generate` | `POST` | Generate audio from base64 prompt |
-| `/v1/models` | `GET` | List loaded models |
-| `/v1/audio/voices` | `GET` | List available voices |
-| `/health` | `GET` | Health check |
-| `/docs` | `GET` | Interactive documentation (Swagger UI) |
+| `/v1/audio/speech` | `POST` | 使用预定义语音进行 TTS（OpenAI 兼容） |
+| `/v1/audio/voice-design` | `POST` | 通过描述设计语音 |
+| `/v1/audio/voice-clone` | `POST` | 使用参考音频进行语音克隆 |
+| `/v1/audio/voice-clone/prompt` | `POST` | 计算可复用提示（返回 base64） |
+| `/v1/audio/voice-clone/generate` | `POST` | 从 base64 提示生成音频 |
+| `/v1/models` | `GET` | 列出已加载的模型 |
+| `/v1/audio/voices` | `GET` | 列出可用语音 |
+| `/health` | `GET` | 健康检查 |
+| `/docs` | `GET` | 交互式文档（Swagger UI） |
 
-## How It Works
+## 工作原理
 
-### Standard TTS Flow
+### 标准 TTS 流程
 
 ```
 ┌─────────┐   POST /v1/audio/speech          ┌─────────────────┐
@@ -97,12 +97,12 @@ Server listens on `http://0.0.0.0:8000` by default.
 └─────────┘                                  └─────────────────┘
 ```
 
-### Voice Clone Flow (Stateless)
+### 语音克隆流程（无状态）
 
-The server holds **zero state**. All voice profiles live on the client.
+服务器**不保存任何状态**。所有语音配置文件都存储在客户端。
 
 ```
-Step 1: Create voice profile (one-time)
+步骤 1：创建语音配置文件（一次性）
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ┌─────────┐   POST /v1/audio/voice-clone/prompt   ┌─────────────────┐
@@ -115,11 +115,11 @@ Step 1: Create voice profile (one-time)
      │
      ▼
 ┌─────────────────────────────┐
-│  Client stores base64 blob  │
+│  客户端存储 base64 blob      │
 │  (SQLite / Redis / etc.)    │
 └─────────────────────────────┘
 
-Step 2: Generate cloned speech (anytime, repeatedly)
+步骤 2：生成克隆语音（随时，重复多次）
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ┌─────────┐   POST /v1/audio/voice-clone/generate   ┌─────────────────┐
@@ -131,9 +131,9 @@ Step 2: Generate cloned speech (anytime, repeatedly)
 └─────────┘                                       └─────────────────┘
 ```
 
-## Examples
+## 示例
 
-### TTS with predefined voice
+### 使用预定义语音进行 TTS
 
 ```bash
 curl -X POST http://localhost:8000/v1/audio/speech \
@@ -148,9 +148,9 @@ curl -X POST http://localhost:8000/v1/audio/speech \
   --output speech.wav
 ```
 
-### Voice Clone (stateless)
+### 语音克隆（无状态）
 
-**1. Create prompt:**
+**1. 创建提示：**
 ```bash
 curl -X POST http://localhost:8000/v1/audio/voice-clone/prompt \
   -H "Content-Type: application/json" \
@@ -160,45 +160,45 @@ curl -X POST http://localhost:8000/v1/audio/voice-clone/prompt \
   }'
 ```
 
-Save `voice_clone_prompt_b64` from the response.
+保存响应中的 `voice_clone_prompt_b64`。
 
-**2. Generate audio:**
+**2. 生成音频：**
 ```bash
 curl -X POST http://localhost:8000/v1/audio/voice-clone/generate \
   -H "Content-Type: application/json" \
   -d '{
     "model": "qwen3-tts",
     "input": "Hello, this is my cloned voice",
-    "voice_clone_prompt_b64": "<the-saved-base64>",
+    "voice_clone_prompt_b64": "<保存的-base64>",
     "response_format": "wav"
   }' \
   --output clone.wav
 ```
 
-## Environment Variables
+## 环境变量
 
-| Variable | Default | Description |
+| 变量 | 默认值 | 描述 |
 |----------|---------|-------------|
-| `QWEN_TTS_HOST` | `0.0.0.0` | Listen host |
-| `QWEN_TTS_PORT` | `8000` | Port |
-| `QWEN_CUSTOM_VOICE_MODEL` | `Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice` | CustomVoice model |
-| `QWEN_VOICE_DESIGN_MODEL` | `Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign` | VoiceDesign model |
-| `QWEN_VOICE_CLONE_MODEL` | `Qwen/Qwen3-TTS-12Hz-1.7B-Base` | Base/Clone model |
-| `QWEN_LAZY_TIMEOUT_SECONDS` | `300` | Seconds before auto-unload |
+| `QWEN_TTS_HOST` | `0.0.0.0` | 监听主机 |
+| `QWEN_TTS_PORT` | `8000` | 端口 |
+| `QWEN_CUSTOM_VOICE_MODEL` | `Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice` | CustomVoice 模型 |
+| `QWEN_VOICE_DESIGN_MODEL` | `Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign` | VoiceDesign 模型 |
+| `QWEN_VOICE_CLONE_MODEL` | `Qwen/Qwen3-TTS-12Hz-1.7B-Base` | Base/Clone 模型 |
+| `QWEN_LAZY_TIMEOUT_SECONDS` | `300` | 自动卸载前的秒数 |
 
-## VRAM Architecture
+## VRAM 架构
 
 ```
-CustomVoice (1.7B)  -> GPU HOT   (~5.5 GB, always)
-VoiceDesign (1.7B)  -> GPU LAZY  (~5.5 GB, exclusive)
-Base/Clone  (1.7B)  -> GPU LAZY  (~5.5 GB, exclusive)
+CustomVoice (1.7B)  -> GPU HOT   (~5.5 GB, 始终)
+VoiceDesign (1.7B)  -> GPU LAZY  (~5.5 GB, 独占)
+Base/Clone  (1.7B)  -> GPU LAZY  (~5.5 GB, 独占)
 ```
 
-VoiceDesign and Base/Clone are **never loaded simultaneously**.
+VoiceDesign 和 Base/Clone **永远不会同时加载**。
 
-### CPU Mode
+### CPU 模式
 
-Set `QWEN_TTS_DEVICE=cpu` to run without a GPU. The server will work but expect significantly slower generation times:
+设置 `QWEN_TTS_DEVICE=cpu` 以在无 GPU 的情况下运行。服务器可以工作，但生成时间会显著变慢：
 
 ```bash
 # Windows
@@ -209,31 +209,31 @@ $env:QWEN_TTS_DEVICE="cpu"
 QWEN_TTS_DEVICE=cpu python main.py
 ```
 
-## Testing
+## 测试
 
 ```bash
-# Unit tests (fast, no model loading)
+# 单元测试（快速，不加载模型）
 pytest tests/ -v
 
-# Integration tests (slow, require GPU)
+# 集成测试（慢，需要 GPU）
 pytest tests/ -v --run-integration
 ```
 
 ## Docker
 
 ```bash
-# Build
+# 构建
 docker build -t qwen-tts-server .
 
-# Run with GPU
+# 使用 GPU 运行
 docker run --gpus all -p 8000:8000 qwen-tts-server
 
-# Run CPU-only
+# 仅 CPU 运行
 docker run -p 8000:8000 -e QWEN_TTS_DEVICE=cpu qwen-tts-server
 ```
 
-Base image: `nvidia/cuda:12.6.0-runtime-ubuntu22.04`. Requires NVIDIA Container Toolkit for GPU passthrough.
+基础镜像：`nvidia/cuda:12.6.0-runtime-ubuntu22.04`。需要 NVIDIA Container Toolkit 进行 GPU 透传。
 
-## License
+## 许可证
 
-Apache 2.0 (same as Qwen3-TTS)
+Apache 2.0（与 Qwen3-TTS 相同）

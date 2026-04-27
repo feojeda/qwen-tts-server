@@ -1,5 +1,11 @@
 # Qwen TTS Server
 
+<div align="center">
+
+[English](README.md) | **Español** | [简体中文](README.zh.md) | [日本語](README.ja.md)
+
+</div>
+
 API REST para [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) con soporte para múltiples modelos, lazy loading de VRAM y voice clone prompts stateless.
 
 ## ¿Por qué este proyecto?
