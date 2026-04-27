@@ -1,18 +1,19 @@
 @echo off
 echo ==========================================
-echo    Qwen3-TTS API Server - VRAM Pool
+echo    Qwen3-TTS API Server
 echo ==========================================
 echo.
-echo Modelos:
-echo   - CustomVoice  (1.7B) HOT  en GPU  -> /v1/audio/speech
-echo   - VoiceDesign  (1.7B) LAZY en GPU  -> /v1/audio/voice-design
-echo   - Base/Clone   (1.7B) LAZY en GPU  -> /v1/audio/voice-clone
+echo IMPORTANT: This server downloads AI models on first run.
+echo - CustomVoice (1.7B): ~3.4 GB download on first startup
+echo - VoiceDesign (1.7B): ~3.4 GB download on first use
+echo - Base/Clone (1.7B): ~3.4 GB download on first use
 echo.
-echo Los modelos lazy comparten VRAM: NUNCA estan ambos cargados a la vez.
-echo Si se pide uno mientras el otro esta cargado, se descarga primero.
-echo Se liberan tras 5 min de inactividad.
+echo Models are cached in: %%USERPROFILE%%\.cache\huggingface\hub\
+echo After first download, startup is instant.
 echo.
-echo Press Ctrl+C to stop the server.
+echo Press any key to start the server...
+pause >nul
 echo.
+echo Starting server...
 .\venv\Scripts\python.exe main.py
 pause

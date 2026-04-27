@@ -40,14 +40,26 @@ python -m venv venv
 ## Usage
 
 ```bash
-# Start server
+# Windows
+start.bat
+
+# Linux/Mac
+chmod +x start.sh
+./start.sh
+```
+
+Or manually:
+```bash
+# Windows
 .\venv\Scripts\python.exe main.py
 
-# Or on Linux/Mac
-# python main.py
+# Linux/Mac
+./venv/bin/python main.py
 ```
 
 Server listens on `http://0.0.0.0:8000` by default.
+
+> **First run will download ~3.4 GB** (CustomVoice model) from HuggingFace. Subsequent startups are instant. Other models download on first use.
 
 ## Endpoints
 

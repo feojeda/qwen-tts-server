@@ -38,14 +38,26 @@ python -m venv venv
 ## Uso
 
 ```bash
-# Iniciar servidor
+# Windows
+start.bat
+
+# Linux/Mac
+chmod +x start.sh
+./start.sh
+```
+
+O manualmente:
+```bash
+# Windows
 .\venv\Scripts\python.exe main.py
 
-# O en Linux/Mac
-# python main.py
+# Linux/Mac
+./venv/bin/python main.py
 ```
 
 El servidor escucha en `http://0.0.0.0:8000` por defecto.
+
+> **La primera ejecución descargará ~3.4 GB** (modelo CustomVoice) desde HuggingFace. Las siguientes arrancan instantáneamente. Los otros modelos se descargan al usarlos por primera vez.
 
 ## Endpoints
 
