@@ -25,6 +25,7 @@ import io
 import os
 import time
 import base64
+import locale
 import threading
 from typing import Optional, List, Any
 from contextlib import asynccontextmanager
@@ -37,6 +38,108 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from qwen_tts import Qwen3TTSModel
+
+
+# ---------------------------------------------------------------------------
+# i18n - Detect OS language and provide translations
+# ---------------------------------------------------------------------------
+def _detect_language() -> str:
+    """Detect system language. Returns 'es' or 'en'."""
+    try:
+        loc, _ = locale.getlocale()
+        if loc and loc.startswith("es"):
+            return "es"
+    except Exception:
+        pass
+    # Fallback to env var
+    lang_env = os.getenv("LANG", os.getenv("LC_ALL", ""))
+    if "es" in lang_env.lower():
+        return "es"
+    return "en"
+
+
+_LANG = _detect_language()
+
+_TRANSLATIONS = {
+    "es": {
+        "gpu_detected": "GPU detectada",
+        "vram_total": "VRAM total",
+        "vram_insufficient": "VRAM insuficiente para modelos 1.7B. Usando modelos 0.6B.",
+        "force_17b": "Para forzar modelos 1.7B, setea QWEN_CUSTOM_VOICE_MODEL manualmente.",
+        "no_cuda": "No se detecto GPU CUDA. Modo CPU activo.",
+        "cpu_models": "Usando modelos 0.6B por defecto (mas rapidos en CPU).",
+        "check_cuda": "Para forzar GPU, verifica que PyTorch CUDA este instalado.",
+        "selected_models": "Modelos seleccionados",
+        "customvoice": "CustomVoice",
+        "voicedesign": "VoiceDesign",
+        "voiceclone": "Base/Clone",
+        "loading": "Cargando",
+        "ready": "listo",
+        "lazy_loading": "configurados para lazy loading",
+        "auto_unload_active": "Auto-unload watcher activo (timeout",
+        "shutdown": "Deteniendo servidor",
+        "unloading": "Descargando",
+        "free_vram": "para liberar VRAM",
+        "unloaded": "descargado",
+        "loaded": "cargado",
+        "inactive_for": "inactivo por",
+        "releasing": "Liberando",
+        "calculating_prompt": "Calculando voice clone prompt",
+        "prompt_calculated": "Prompt calculado en",
+        "prompt_serialized": "Desserializando voice clone prompt",
+        "customvoice_gen": "CustomVoice generado en",
+        "voicedesign_gen": "VoiceDesign generado en",
+        "voiceclone_gen": "VoiceClone generado en",
+        "voiceclone_from_prompt": "VoiceClone (from prompt) generado en",
+        "error_prompt": "Error creando voice clone prompt",
+        "error_clone": "Error en voice clone",
+        "error_generate": "Error generando desde prompt",
+        "error_voices": "Error listando voces",
+        "not_loaded": "no esta cargado aun",
+    },
+    "en": {
+        "gpu_detected": "GPU detected",
+        "vram_total": "Total VRAM",
+        "vram_insufficient": "Insufficient VRAM for 1.7B models. Using 0.6B models.",
+        "force_17b": "To force 1.7B models, set QWEN_CUSTOM_VOICE_MODEL manually.",
+        "no_cuda": "No CUDA GPU detected. CPU mode active.",
+        "cpu_models": "Using 0.6B models by default (faster on CPU).",
+        "check_cuda": "To force GPU, verify PyTorch CUDA is installed.",
+        "selected_models": "Selected models",
+        "customvoice": "CustomVoice",
+        "voicedesign": "VoiceDesign",
+        "voiceclone": "Base/Clone",
+        "loading": "Loading",
+        "ready": "ready",
+        "lazy_loading": "configured for lazy loading",
+        "auto_unload_active": "Auto-unload watcher active (timeout",
+        "shutdown": "Shutting down server",
+        "unloading": "Unloading",
+        "free_vram": "to free VRAM",
+        "unloaded": "unloaded",
+        "loaded": "loaded",
+        "inactive_for": "inactive for",
+        "releasing": "Releasing",
+        "calculating_prompt": "Calculating voice clone prompt",
+        "prompt_calculated": "Prompt calculated in",
+        "prompt_serialized": "Deserializing voice clone prompt",
+        "customvoice_gen": "CustomVoice generated in",
+        "voicedesign_gen": "VoiceDesign generated in",
+        "voiceclone_gen": "VoiceClone generated in",
+        "voiceclone_from_prompt": "VoiceClone (from prompt) generated in",
+        "error_prompt": "Error creating voice clone prompt",
+        "error_clone": "Voice clone error",
+        "error_generate": "Error generating from prompt",
+        "error_voices": "Error listing voices",
+        "not_loaded": "not loaded yet",
+    },
+}
+
+
+def _t(key: str) -> str:
+    """Translate a key based on detected OS language."""
+    return _TRANSLATIONS.get(_LANG, _TRANSLATIONS["en"]).get(key, key)
+
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -68,21 +171,18 @@ def _auto_select_models(vram_gb: float) -> tuple[str, str, str]:
             "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
         )
     elif vram_gb >= 8.0:
-        # 8-11 GB: use 0.6B for all to stay safe
         return (
             "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
             "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
             "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
         )
     elif vram_gb >= 6.0:
-        # 6-7 GB: 0.6B for all
         return (
             "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
             "Qwen/Qwen3-TTS-12Hz-0.6B-VoiceDesign",
             "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
         )
     else:
-        # < 6 GB or CPU: 0.6B is the safest bet
         return (
             "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
             "Qwen/Qwen3-TTS-12Hz-0.6B-VoiceDesign",
@@ -97,12 +197,12 @@ CUSTOM_VOICE_MODEL = os.getenv("QWEN_CUSTOM_VOICE_MODEL", _auto_cv)
 VOICE_DESIGN_MODEL = os.getenv("QWEN_VOICE_DESIGN_MODEL", _auto_vd)
 VOICE_CLONE_MODEL  = os.getenv("QWEN_VOICE_CLONE_MODEL",  _auto_vc)
 
-LAZY_TIMEOUT = int(os.getenv("QWEN_LAZY_TIMEOUT_SECONDS", "300"))  # 5 minutos
+LAZY_TIMEOUT = int(os.getenv("QWEN_LAZY_TIMEOUT_SECONDS", "300"))
 
 DEVICE_GPU = "cuda:0"
 
 # ---------------------------------------------------------------------------
-# Model state (solo modelos, nada de prompts)
+# Model state
 # ---------------------------------------------------------------------------
 custom_voice_model: Optional[Qwen3TTSModel] = None
 voice_design_model: Optional[Qwen3TTSModel] = None
@@ -121,7 +221,6 @@ shutdown_flag = threading.Event()
 # Prompt serialization helpers (stateless)
 # ---------------------------------------------------------------------------
 def _serialize_prompt(items: Any) -> str:
-    """Serializa un voice_clone_prompt a string base64."""
     buf = io.BytesIO()
     torch.save(items, buf)
     buf.seek(0)
@@ -129,7 +228,6 @@ def _serialize_prompt(items: Any) -> str:
 
 
 def _deserialize_prompt(b64_string: str) -> Any:
-    """Desserializa un voice_clone_prompt desde string base64."""
     raw = base64.b64decode(b64_string.encode("utf-8"))
     buf = io.BytesIO(raw)
     return torch.load(buf, weights_only=False)
@@ -141,30 +239,30 @@ def _deserialize_prompt(b64_string: str) -> Any:
 def _do_unload_voice_design():
     global voice_design_model
     if voice_design_model is not None:
-        print("[LAZY] Descargando VoiceDesign para liberar VRAM...")
+        print(f"[LAZY] {_t('unloading')} VoiceDesign {_t('free_vram')}...")
         del voice_design_model
         voice_design_model = None
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-        print("[LAZY] VoiceDesign descargado.")
+        print(f"[LAZY] VoiceDesign {_t('unloaded')}.")
 
 
 def _do_unload_voice_clone():
     global voice_clone_model
     if voice_clone_model is not None:
-        print("[LAZY] Descargando Base/Clone para liberar VRAM...")
+        print(f"[LAZY] {_t('unloading')} Base/Clone {_t('free_vram')}...")
         del voice_clone_model
         voice_clone_model = None
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-        print("[LAZY] Base/Clone descargado.")
+        print(f"[LAZY] Base/Clone {_t('unloaded')}.")
 
 
 def _do_load_voice_design() -> Qwen3TTSModel:
     global voice_design_model
     if voice_clone_model is not None:
         _do_unload_voice_clone()
-    print(f"[LAZY] Cargando VoiceDesign: {VOICE_DESIGN_MODEL} en {DEVICE_GPU} ...")
+    print(f"[LAZY] {_t('loading')} VoiceDesign: {VOICE_DESIGN_MODEL} ...")
     voice_design_model = Qwen3TTSModel.from_pretrained(
         VOICE_DESIGN_MODEL,
         device_map=DEVICE_GPU,
@@ -172,7 +270,7 @@ def _do_load_voice_design() -> Qwen3TTSModel:
         attn_implementation="sdpa",
     )
     last_used["voice_design"] = time.time()
-    print("[LAZY] VoiceDesign cargado.")
+    print(f"[LAZY] VoiceDesign {_t('loaded')}.")
     return voice_design_model
 
 
@@ -180,7 +278,7 @@ def _do_load_voice_clone() -> Qwen3TTSModel:
     global voice_clone_model
     if voice_design_model is not None:
         _do_unload_voice_design()
-    print(f"[LAZY] Cargando Base/Clone: {VOICE_CLONE_MODEL} en {DEVICE_GPU} ...")
+    print(f"[LAZY] {_t('loading')} Base/Clone: {VOICE_CLONE_MODEL} ...")
     voice_clone_model = Qwen3TTSModel.from_pretrained(
         VOICE_CLONE_MODEL,
         device_map=DEVICE_GPU,
@@ -188,7 +286,7 @@ def _do_load_voice_clone() -> Qwen3TTSModel:
         attn_implementation="sdpa",
     )
     last_used["voice_clone"] = time.time()
-    print("[LAZY] Base/Clone cargado.")
+    print(f"[LAZY] Base/Clone {_t('loaded')}.")
     return voice_clone_model
 
 
@@ -225,12 +323,12 @@ def _auto_unload_worker():
             if voice_design_model is not None:
                 idle = now - last_used["voice_design"]
                 if idle > LAZY_TIMEOUT:
-                    print(f"[AUTO] VoiceDesign inactivo por {idle:.0f}s. Liberando...")
+                    print(f"[AUTO] VoiceDesign {_t('inactive_for')} {idle:.0f}s. {_t('releasing')}...")
                     _do_unload_voice_design()
             if voice_clone_model is not None:
                 idle = now - last_used["voice_clone"]
                 if idle > LAZY_TIMEOUT:
-                    print(f"[AUTO] Base/Clone inactivo por {idle:.0f}s. Liberando...")
+                    print(f"[AUTO] Base/Clone {_t('inactive_for')} {idle:.0f}s. {_t('releasing')}...")
                     _do_unload_voice_clone()
 
 
@@ -243,43 +341,43 @@ async def lifespan(app: FastAPI):
 
     # VRAM report
     if _vram_gb > 0:
-        print(f"[INIT] GPU detectada: {torch.cuda.get_device_name(0)}")
-        print(f"[INIT] VRAM total: {_vram_gb:.1f} GB")
+        print(f"[INIT] {_t('gpu_detected')}: {torch.cuda.get_device_name(0)}")
+        print(f"[INIT] {_t('vram_total')}: {_vram_gb:.1f} GB")
         if _vram_gb < 12.0:
-            print(f"[INIT] VRAM insuficiente para modelos 1.7B. Usando modelos 0.6B.")
-            print(f"[INIT] Para forzar modelos 1.7B, setea QWEN_CUSTOM_VOICE_MODEL manualmente.")
+            print(f"[INIT] {_t('vram_insufficient')}")
+            print(f"[INIT] {_t('force_17b')}")
     else:
-        print("[INIT] No se detecto GPU CUDA. Modo CPU activo.")
-        print("[INIT] Usando modelos 0.6B por defecto (mas rapidos en CPU).")
-        print("[INIT] Para forzar GPU, verifica que PyTorch CUDA este instalado.")
+        print(f"[INIT] {_t('no_cuda')}")
+        print(f"[INIT] {_t('cpu_models')}")
+        print(f"[INIT] {_t('check_cuda')}")
 
-    print(f"[INIT] Modelos seleccionados:")
-    print(f"[INIT]   CustomVoice:  {CUSTOM_VOICE_MODEL}")
-    print(f"[INIT]   VoiceDesign:  {VOICE_DESIGN_MODEL}")
-    print(f"[INIT]   Base/Clone:   {VOICE_CLONE_MODEL}")
+    print(f"[INIT] {_t('selected_models')}:")
+    print(f"[INIT]   {_t('customvoice')}:  {CUSTOM_VOICE_MODEL}")
+    print(f"[INIT]   {_t('voicedesign')}:  {VOICE_DESIGN_MODEL}")
+    print(f"[INIT]   {_t('voiceclone')}:   {VOICE_CLONE_MODEL}")
 
     device = DEVICE_GPU if _vram_gb > 0 else "cpu"
     dtype = torch.bfloat16 if device.startswith("cuda") else torch.float32
     attn = "sdpa" if device.startswith("cuda") else "eager"
 
-    print(f"[INIT] Cargando CustomVoice (hot): {CUSTOM_VOICE_MODEL} en {device}")
+    print(f"[INIT] {_t('loading')} CustomVoice (hot): {CUSTOM_VOICE_MODEL} ...")
     custom_voice_model = Qwen3TTSModel.from_pretrained(
         CUSTOM_VOICE_MODEL,
         device_map=device,
         dtype=dtype,
         attn_implementation=attn,
     )
-    print("[INIT] CustomVoice listo.")
+    print(f"[INIT] CustomVoice {_t('ready')}.")
 
-    print("[INIT] VoiceDesign y Base/Clone configurados para lazy loading.")
+    print(f"[INIT] VoiceDesign + Base/Clone {_t('lazy_loading')}.")
 
     watcher = threading.Thread(target=_auto_unload_worker, daemon=True)
     watcher.start()
-    print(f"[INIT] Auto-unload watcher activo (timeout: {LAZY_TIMEOUT}s)")
+    print(f"[INIT] {_t('auto_unload_active')}: {LAZY_TIMEOUT}s)")
 
     yield
 
-    print("[SHUTDOWN] Deteniendo servidor...")
+    print(f"[SHUTDOWN] {_t('shutdown')}...")
     shutdown_flag.set()
     with model_lock:
         _do_unload_voice_design()
@@ -439,13 +537,13 @@ def list_models():
 @app.get("/v1/audio/voices")
 def list_voices():
     if custom_voice_model is None:
-        raise HTTPException(503, "CustomVoice model not loaded yet.")
+        raise HTTPException(503, f"CustomVoice {_t('not_loaded')}")
     try:
         speakers = custom_voice_model.get_supported_speakers()
         languages = custom_voice_model.get_supported_languages()
         return {"voices": speakers, "languages": languages}
     except Exception as e:
-        raise HTTPException(500, f"Error listing voices: {e}")
+        raise HTTPException(500, f"{_t('error_voices')}: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -454,7 +552,7 @@ def list_voices():
 @app.post("/v1/audio/speech")
 def create_speech(body: CreateSpeechRequest):
     if custom_voice_model is None:
-        raise HTTPException(503, "CustomVoice model not loaded yet.")
+        raise HTTPException(503, f"CustomVoice {_t('not_loaded')}")
     try:
         start = time.time()
         wavs, sr = custom_voice_model.generate_custom_voice(
@@ -464,7 +562,7 @@ def create_speech(body: CreateSpeechRequest):
             instruct=body.instructions or "",
         )
         elapsed = time.time() - start
-        print(f"[INFO] CustomVoice generated in {elapsed:.2f}s")
+        print(f"[INFO] {_t('customvoice_gen')} {elapsed:.2f}s")
 
         wav = wavs[0]
         audio_bytes, mime_type = _audio_to_bytes(wav, sr, body.response_format)
@@ -491,7 +589,7 @@ def create_voice_design(body: VoiceDesignRequest):
             instruct=body.instructions,
         )
         elapsed = time.time() - start
-        print(f"[INFO] VoiceDesign generated in {elapsed:.2f}s")
+        print(f"[INFO] {_t('voicedesign_gen')} {elapsed:.2f}s")
 
         wav = wavs[0]
         audio_bytes, mime_type = _audio_to_bytes(wav, sr, body.response_format)
@@ -519,7 +617,7 @@ def create_voice_clone(body: VoiceCloneRequest):
             ref_text=body.ref_text or "",
         )
         elapsed = time.time() - start
-        print(f"[INFO] VoiceClone generated in {elapsed:.2f}s")
+        print(f"[INFO] {_t('voiceclone_gen')} {elapsed:.2f}s")
 
         wav = wavs[0]
         audio_bytes, mime_type = _audio_to_bytes(wav, sr, body.response_format)
@@ -533,7 +631,7 @@ def create_voice_clone(body: VoiceCloneRequest):
         )
     except Exception as e:
         import traceback
-        print("[ERROR] Voice clone traceback:")
+        print(f"[ERROR] {_t('error_clone')}:")
         traceback.print_exc()
         raise HTTPException(500, f"Voice clone failed: {e}")
 
@@ -550,20 +648,20 @@ def create_voice_clone_prompt(body: CreateVoiceClonePromptRequest):
     try:
         mdl = _get_voice_clone()
         start = time.time()
-        print("[PROMPT] Calculando voice clone prompt...")
+        print(f"[PROMPT] {_t('calculating_prompt')}...")
         prompt_items = mdl.create_voice_clone_prompt(
             ref_audio=body.ref_audio,
             ref_text=body.ref_text,
             x_vector_only_mode=body.x_vector_only_mode,
         )
         elapsed = time.time() - start
-        print(f"[PROMPT] Prompt calculado en {elapsed:.2f}s")
+        print(f"[PROMPT] {_t('prompt_calculated')} {elapsed:.2f}s")
 
         b64_prompt = _serialize_prompt(prompt_items)
         return VoiceClonePromptResponse(voice_clone_prompt_b64=b64_prompt)
     except Exception as e:
         import traceback
-        print("[ERROR] Create voice clone prompt traceback:")
+        print(f"[ERROR] {_t('error_prompt')}:")
         traceback.print_exc()
         raise HTTPException(500, f"Failed to create voice clone prompt: {e}")
 
@@ -575,7 +673,7 @@ def generate_voice_clone_from_prompt(body: GenerateVoiceCloneFromPromptRequest):
     El prompt se desserializa en memoria, se usa, y se libera inmediatamente.
     """
     try:
-        print("[PROMPT] Desserializando voice clone prompt...")
+        print(f"[PROMPT] {_t('prompt_serialized')}...")
         prompt_items = _deserialize_prompt(body.voice_clone_prompt_b64)
 
         mdl = _get_voice_clone()
@@ -586,7 +684,7 @@ def generate_voice_clone_from_prompt(body: GenerateVoiceCloneFromPromptRequest):
             voice_clone_prompt=prompt_items,
         )
         elapsed = time.time() - start
-        print(f"[INFO] VoiceClone (from prompt) generated in {elapsed:.2f}s")
+        print(f"[INFO] {_t('voiceclone_from_prompt')} {elapsed:.2f}s")
 
         wav = wavs[0]
         audio_bytes, mime_type = _audio_to_bytes(wav, sr, body.response_format)
@@ -600,7 +698,7 @@ def generate_voice_clone_from_prompt(body: GenerateVoiceCloneFromPromptRequest):
         )
     except Exception as e:
         import traceback
-        print("[ERROR] Generate from prompt traceback:")
+        print(f"[ERROR] {_t('error_generate')}:")
         traceback.print_exc()
         raise HTTPException(500, f"Voice clone generation from prompt failed: {e}")
 
