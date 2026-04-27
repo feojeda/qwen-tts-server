@@ -80,6 +80,33 @@ QWEN_LAZY_TIMEOUT_SECONDS=300   # auto-unload idle lazy models
 
 Integration tests are marked `@pytest.mark.integration` and are **skipped by default**. They load real Qwen3-TTS models, download weights on first run, and generate actual audio. Only run them locally when you want to verify end-to-end behavior with real hardware.
 
+## Model Cache Location
+
+By default, HuggingFace downloads models to the user's home directory (`~/.cache/huggingface/hub/` on Linux/Mac, `%USERPROFILE%\.cache\huggingface\hub\` on Windows). This project overrides the cache to the project folder so models stay on the same drive as the code.
+
+| Variable | Default (overridden) | Project location |
+|----------|---------------------|------------------|
+| `HF_HOME` | `~/.cache/huggingface` | `./cache/hf/` |
+| `TRANSFORMERS_CACHE` | same as above | same as above |
+
+**`start.bat`** and **`start.sh`** set these automatically. If you run `main.py` manually, set them yourself:
+
+```powershell
+# Windows
+$env:HF_HOME="E:\qwentts\cache\hf"
+$env:TRANSFORMERS_CACHE="E:\qwentts\cache\hf"
+.\venv\Scripts\python.exe main.py
+```
+
+```bash
+# Linux/Mac
+export HF_HOME="/path/to/qwen-tts-server/cache/hf"
+export TRANSFORMERS_CACHE="$HF_HOME"
+./venv/bin/python main.py
+```
+
+The `cache/` directory is already in `.gitignore`.
+
 ## Docker
 
 ```bash

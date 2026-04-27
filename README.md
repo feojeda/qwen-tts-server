@@ -215,9 +215,43 @@ QWEN_TTS_DEVICE=cpu python main.py
 # Unit tests (fast, no model loading)
 pytest tests/ -v
 
-# Integration tests (slow, require GPU)
-pytest tests/ -v --run-integration
+# Integration tests (slow, require real models)
+pytest tests/test_integration.py -v --run-integration
 ```
+
+| Test suite | Files | Model loading | Speed | Runs in CI |
+|-----------|-------|---------------|-------|-----------|
+| **Unit** | `test_*.py` except `test_integration.py` | Mocked (no downloads) | ~0.5s | ✅ Yes |
+| **Integration** | `test_integration.py` only | Real models from HuggingFace | ~5-15 min | ❌ No |
+
+Integration tests are marked `@pytest.mark.integration` and are **skipped by default**. They load real Qwen3-TTS models, download weights on first run, and generate actual audio. Only run them locally when you want to verify end-to-end behavior with real hardware.
+
+## Model Cache Location
+
+By default, HuggingFace downloads models to the user's home directory (`~/.cache/huggingface/hub/` on Linux/Mac, `%USERPROFILE%\.cache\huggingface\hub\` on Windows). This project overrides the cache to the project folder so models stay on the same drive as the code.
+
+| Variable | Default (overridden) | Project location |
+|----------|---------------------|------------------|
+| `HF_HOME` | `~/.cache/huggingface` | `./cache/hf/` |
+| `TRANSFORMERS_CACHE` | same as above | same as above |
+
+**`start.bat`** and **`start.sh`** set these automatically. If you run `main.py` manually, set them yourself:
+
+```powershell
+# Windows
+$env:HF_HOME="E:\qwentts\cache\hf"
+$env:TRANSFORMERS_CACHE="E:\qwentts\cache\hf"
+.\venv\Scripts\python.exe main.py
+```
+
+```bash
+# Linux/Mac
+export HF_HOME="/path/to/qwen-tts-server/cache/hf"
+export TRANSFORMERS_CACHE="$HF_HOME"
+./venv/bin/python main.py
+```
+
+The `cache/` directory is already in `.gitignore`.
 
 ## Docker
 

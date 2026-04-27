@@ -215,9 +215,43 @@ QWEN_TTS_DEVICE=cpu python main.py
 # 单元测试（快速，不加载模型）
 pytest tests/ -v
 
-# 集成测试（慢，需要 GPU）
-pytest tests/ -v --run-integration
+# 集成测试（慢，需要真实模型）
+pytest tests/test_integration.py -v --run-integration
 ```
+
+| 测试套件 | 文件 | 模型加载 | 速度 | 在 CI 中运行 |
+|-----------|-------|---------------|-------|-----------|
+| **单元** | `test_*.py` 除了 `test_integration.py` | Mock（不下载） | ~0.5秒 | ✅ 是 |
+| **集成** | 仅 `test_integration.py` | HuggingFace 真实模型 | ~5-15 分钟 | ❌ 否 |
+
+集成测试标记为 `@pytest.mark.integration`，**默认跳过**。它们加载真实的 Qwen3-TTS 模型，首次运行时下载权重，并生成实际音频。仅在本地验证端到端行为时运行。
+
+## 模型缓存位置
+
+默认情况下，HuggingFace 将模型下载到用户主目录（Linux/Mac 为 `~/.cache/huggingface/hub/`，Windows 为 `%USERPROFILE%\.cache\huggingface\hub\`）。本项目将缓存覆盖到项目文件夹，以便模型与代码位于同一驱动器。
+
+| 变量 | 默认值（已覆盖） | 项目位置 |
+|----------|---------------------|------------------|
+| `HF_HOME` | `~/.cache/huggingface` | `./cache/hf/` |
+| `TRANSFORMERS_CACHE` | 同上 | 同上 |
+
+**`start.bat`** 和 **`start.sh`** 会自动设置。如果手动运行 `main.py`，请自行设置：
+
+```powershell
+# Windows
+$env:HF_HOME="E:\qwentts\cache\hf"
+$env:TRANSFORMERS_CACHE="E:\qwentts\cache\hf"
+.\venv\Scripts\python.exe main.py
+```
+
+```bash
+# Linux/Mac
+export HF_HOME="/path/to/qwen-tts-server/cache/hf"
+export TRANSFORMERS_CACHE="$HF_HOME"
+./venv/bin/python main.py
+```
+
+`cache/` 目录已在 `.gitignore` 中。
 
 ## Docker
 

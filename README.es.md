@@ -200,6 +200,50 @@ VoiceDesign y Base/Clone **nunca están cargados simultáneamente**.
 
 ¡Los PRs son bienvenidos! Las guidelines están en inglés: [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Testing
+
+```bash
+# Unit tests (rápidos, no cargan modelos)
+pytest tests/ -v
+
+# Integration tests (lentos, requieren modelos reales)
+pytest tests/test_integration.py -v --run-integration
+```
+
+| Suite de tests | Archivos | Carga de modelos | Velocidad | Corre en CI |
+|-----------|-------|---------------|-------|-----------|
+| **Unit** | `test_*.py` excepto `test_integration.py` | Mockeados (sin descargas) | ~0.5s | ✅ Sí |
+| **Integration** | Solo `test_integration.py` | Modelos reales de HuggingFace | ~5-15 min | ❌ No |
+
+Los integration tests están marcados con `@pytest.mark.integration` y se **saltan por defecto**. Cargan modelos Qwen3-TTS reales, descargan pesos en la primera ejecución y generan audio real. Correlos solo localmente cuando quieras verificar el comportamiento end-to-end con hardware real.
+
+## Ubicación del Cache de Modelos
+
+Por defecto, HuggingFace descarga modelos al directorio home del usuario (`~/.cache/huggingface/hub/` en Linux/Mac, `%USERPROFILE%\.cache\huggingface\hub\` en Windows). Este proyecto sobrescribe el cache a la carpeta del proyecto para que los modelos queden en el mismo disco que el código.
+
+| Variable | Default (sobrescrito) | Ubicación del proyecto |
+|----------|---------------------|------------------|
+| `HF_HOME` | `~/.cache/huggingface` | `./cache/hf/` |
+| `TRANSFORMERS_CACHE` | igual que arriba | igual que arriba |
+
+**`start.bat`** y **`start.sh`** configuran esto automáticamente. Si corres `main.py` manualmente, configurá las variables vos:
+
+```powershell
+# Windows
+$env:HF_HOME="E:\qwentts\cache\hf"
+$env:TRANSFORMERS_CACHE="E:\qwentts\cache\hf"
+.\venv\Scripts\python.exe main.py
+```
+
+```bash
+# Linux/Mac
+export HF_HOME="/path/to/qwen-tts-server/cache/hf"
+export TRANSFORMERS_CACHE="$HF_HOME"
+./venv/bin/python main.py
+```
+
+La carpeta `cache/` ya está en `.gitignore`.
+
 ## Licencia
 
 Apache 2.0 (mismo que Qwen3-TTS)

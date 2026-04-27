@@ -215,9 +215,43 @@ QWEN_TTS_DEVICE=cpu python main.py
 # ユニットテスト（高速、モデルロードなし）
 pytest tests/ -v
 
-# 統合テスト（遅い、GPU が必要）
-pytest tests/ -v --run-integration
+# 統合テスト（遅い、実際のモデルが必要）
+pytest tests/test_integration.py -v --run-integration
 ```
+
+| テストスイート | ファイル | モデル読み込み | 速度 | CI で実行 |
+|-----------|-------|---------------|-------|-----------|
+| **Unit** | `test_integration.py` 以外 | Mock（ダウンロードなし） | ~0.5秒 | ✅ はい |
+| **Integration** | `test_integration.py` のみ | HuggingFace の実モデル | ~5-15 分 | ❌ いいえ |
+
+統合テストは `@pytest.mark.integration` でマークされており、**デフォルトでスキップされます**。実際の Qwen3-TTS モデルを読み込み、初回実行時に重みをダウンロードし、実際のオーディオを生成します。実際のハードウェアでエンドツーエンドの動作を確認する場合のみ、ローカルで実行してください。
+
+## モデルキャッシュの場所
+
+デフォルトでは、HuggingFace はユーザーのホームディレクトリにモデルをダウンロードします（Linux/Mac は `~/.cache/huggingface/hub/`、Windows は `%USERPROFILE%\.cache\huggingface\hub\`）。このプロジェクトでは、モデルがコードと同じドライブに残るように、キャッシュをプロジェクトフォルダにオーバーライドしています。
+
+| 変数 | デフォルト（オーバーライド済み） | プロジェクトの場所 |
+|----------|---------------------|------------------|
+| `HF_HOME` | `~/.cache/huggingface` | `./cache/hf/` |
+| `TRANSFORMERS_CACHE` | 同上 | 同上 |
+
+**`start.bat`** と **`start.sh`** はこれを自動的に設定します。`main.py` を手動で実行する場合は、自分で設定してください：
+
+```powershell
+# Windows
+$env:HF_HOME="E:\qwentts\cache\hf"
+$env:TRANSFORMERS_CACHE="E:\qwentts\cache\hf"
+.\venv\Scripts\python.exe main.py
+```
+
+```bash
+# Linux/Mac
+export HF_HOME="/path/to/qwen-tts-server/cache/hf"
+export TRANSFORMERS_CACHE="$HF_HOME"
+./venv/bin/python main.py
+```
+
+`cache/` ディレクトリはすでに `.gitignore` に含まれています。
 
 ## Docker
 
