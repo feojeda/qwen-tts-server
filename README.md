@@ -1,25 +1,27 @@
 # Qwen TTS Server
 
-API REST para [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) con soporte para múltiples modelos, lazy loading de VRAM y voice clone prompts stateless.
+REST API for [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) with multi-model support, VRAM lazy loading, and stateless voice clone prompts.
 
-## Características
+> **Leer en español:** [README.es.md](README.es.md)
 
-- **3 modelos en un solo servidor:**
-  - `CustomVoice` (1.7B) - Voces predefinidas, siempre en GPU
-  - `VoiceDesign` (1.7B) - Diseño de voz por descripción, lazy load
-  - `Base/Clone` (1.7B) - Clonación de voz, lazy load
-- **Lazy Loading + VRAM Pool:** Solo CustomVoice permanece en GPU. VoiceDesign y Base/Clone comparten VRAM y se cargan bajo demanda.
-- **Voice Clone Prompts (Stateless):** El servidor no guarda estado. Los prompts se serializan en base64 y el cliente los almacena.
-- **Compatible con OpenAI:** Endpoints bajo `/v1/audio/speech`, `/v1/models`, etc.
-- **Auto-unload:** Los modelos lazy se descargan automáticamente tras inactividad.
+## Features
 
-## Requisitos
+- **3 models in a single server:**
+  - `CustomVoice` (1.7B) — Predefined voices, always on GPU
+  - `VoiceDesign` (1.7B) — Voice design by description, lazy loaded
+  - `Base/Clone` (1.7B) — Voice cloning, lazy loaded
+- **Lazy Loading + VRAM Pool:** Only CustomVoice stays on GPU. VoiceDesign and Base/Clone share VRAM and load on demand.
+- **Stateless Voice Clone Prompts:** Server holds no state. Prompts are serialized to base64 and stored by the client.
+- **OpenAI-compatible:** Endpoints under `/v1/audio/speech`, `/v1/models`, etc.
+- **Auto-unload:** Lazy models unload automatically after inactivity.
+
+## Requirements
 
 - Python 3.12+
-- CUDA 12.6+ (para GPU)
-- ~12 GB VRAM (RTX 3060 o superior recomendado)
+- CUDA 12.6+ (for GPU)
+- ~12 GB VRAM (RTX 3060 or better recommended)
 
-## Instalación
+## Installation
 
 ```bash
 git clone <repo-url>
@@ -35,44 +37,44 @@ python -m venv venv
 # pip install -r requirements.txt
 ```
 
-## Uso
+## Usage
 
 ```bash
-# Iniciar servidor
+# Start server
 .\venv\Scripts\python.exe main.py
 
-# O en Linux/Mac
+# Or on Linux/Mac
 # python main.py
 ```
 
-El servidor escucha en `http://0.0.0.0:8000` por defecto.
+Server listens on `http://0.0.0.0:8000` by default.
 
 ## Endpoints
 
-| Endpoint | Método | Descripción |
+| Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/v1/audio/speech` | `POST` | TTS con voz predefinida (OpenAI-compatible) |
-| `/v1/audio/voice-design` | `POST` | Diseño de voz por descripción |
-| `/v1/audio/voice-clone` | `POST` | Clonación de voz con audio de referencia |
-| `/v1/audio/voice-clone/prompt` | `POST` | Calcula prompt reusable (devuelve base64) |
-| `/v1/audio/voice-clone/generate` | `POST` | Genera audio desde prompt base64 |
-| `/v1/models` | `GET` | Lista modelos cargados |
-| `/v1/audio/voices` | `GET` | Lista voces disponibles |
+| `/v1/audio/speech` | `POST` | TTS with predefined voice (OpenAI-compatible) |
+| `/v1/audio/voice-design` | `POST` | Voice design by description |
+| `/v1/audio/voice-clone` | `POST` | Voice cloning with reference audio |
+| `/v1/audio/voice-clone/prompt` | `POST` | Calculate reusable prompt (returns base64) |
+| `/v1/audio/voice-clone/generate` | `POST` | Generate audio from base64 prompt |
+| `/v1/models` | `GET` | List loaded models |
+| `/v1/audio/voices` | `GET` | List available voices |
 | `/health` | `GET` | Health check |
-| `/docs` | `GET` | Documentación interactiva (Swagger UI) |
+| `/docs` | `GET` | Interactive documentation (Swagger UI) |
 
-## Ejemplos
+## Examples
 
-### TTS con voz predefinida
+### TTS with predefined voice
 
 ```bash
 curl -X POST http://localhost:8000/v1/audio/speech \
   -H "Content-Type: application/json" \
   -d '{
     "model": "qwen3-tts",
-    "input": "Hola mundo",
+    "input": "Hello world",
     "voice": "Vivian",
-    "language": "Spanish",
+    "language": "English",
     "response_format": "wav"
   }' \
   --output speech.wav
@@ -80,52 +82,77 @@ curl -X POST http://localhost:8000/v1/audio/speech \
 
 ### Voice Clone (stateless)
 
-**1. Crear prompt:**
+**1. Create prompt:**
 ```bash
 curl -X POST http://localhost:8000/v1/audio/voice-clone/prompt \
   -H "Content-Type: application/json" \
   -d '{
-    "ref_audio": "https://ejemplo.com/mi_voz.wav",
-    "ref_text": "Texto exacto de referencia"
+    "ref_audio": "https://example.com/my_voice.wav",
+    "ref_text": "Exact transcript of the reference audio"
   }'
 ```
 
-Guarda `voice_clone_prompt_b64` de la respuesta.
+Save `voice_clone_prompt_b64` from the response.
 
-**2. Generar audio:**
+**2. Generate audio:**
 ```bash
 curl -X POST http://localhost:8000/v1/audio/voice-clone/generate \
   -H "Content-Type: application/json" \
   -d '{
     "model": "qwen3-tts",
-    "input": "Hola, esta es mi voz clonada",
-    "voice_clone_prompt_b64": "<el-base64-guardado>",
+    "input": "Hello, this is my cloned voice",
+    "voice_clone_prompt_b64": "<the-saved-base64>",
     "response_format": "wav"
   }' \
   --output clone.wav
 ```
 
-## Variables de entorno
+## Environment Variables
 
-| Variable | Default | Descripción |
+| Variable | Default | Description |
 |----------|---------|-------------|
-| `QWEN_TTS_HOST` | `0.0.0.0` | Host de escucha |
-| `QWEN_TTS_PORT` | `8000` | Puerto |
-| `QWEN_CUSTOM_VOICE_MODEL` | `Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice` | Modelo CustomVoice |
-| `QWEN_VOICE_DESIGN_MODEL` | `Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign` | Modelo VoiceDesign |
-| `QWEN_VOICE_CLONE_MODEL` | `Qwen/Qwen3-TTS-12Hz-1.7B-Base` | Modelo Base/Clone |
-| `QWEN_LAZY_TIMEOUT_SECONDS` | `300` | Segundos para auto-unload |
+| `QWEN_TTS_HOST` | `0.0.0.0` | Listen host |
+| `QWEN_TTS_PORT` | `8000` | Port |
+| `QWEN_CUSTOM_VOICE_MODEL` | `Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice` | CustomVoice model |
+| `QWEN_VOICE_DESIGN_MODEL` | `Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign` | VoiceDesign model |
+| `QWEN_VOICE_CLONE_MODEL` | `Qwen/Qwen3-TTS-12Hz-1.7B-Base` | Base/Clone model |
+| `QWEN_LAZY_TIMEOUT_SECONDS` | `300` | Seconds before auto-unload |
 
-## Arquitectura de VRAM
+## VRAM Architecture
 
 ```
-CustomVoice (1.7B)  -> GPU HOT   (~5.5 GB, siempre)
-VoiceDesign (1.7B)  -> GPU LAZY  (~5.5 GB, excluyente)
-Base/Clone  (1.7B)  -> GPU LAZY  (~5.5 GB, excluyente)
+CustomVoice (1.7B)  -> GPU HOT   (~5.5 GB, always)
+VoiceDesign (1.7B)  -> GPU LAZY  (~5.5 GB, exclusive)
+Base/Clone  (1.7B)  -> GPU LAZY  (~5.5 GB, exclusive)
 ```
 
-VoiceDesign y Base/Clone **nunca están cargados simultáneamente**.
+VoiceDesign and Base/Clone are **never loaded simultaneously**.
 
-## Licencia
+## Testing
 
-Apache 2.0 (mismo que Qwen3-TTS)
+```bash
+# Unit tests (fast, no model loading)
+pytest tests/ -v
+
+# Integration tests (slow, require GPU)
+pytest tests/ -v --run-integration
+```
+
+## Docker
+
+```bash
+# Build
+docker build -t qwen-tts-server .
+
+# Run with GPU
+docker run --gpus all -p 8000:8000 qwen-tts-server
+
+# Run CPU-only
+docker run -p 8000:8000 -e QWEN_TTS_DEVICE=cpu qwen-tts-server
+```
+
+Base image: `nvidia/cuda:12.6.0-runtime-ubuntu22.04`. Requires NVIDIA Container Toolkit for GPU passthrough.
+
+## License
+
+Apache 2.0 (same as Qwen3-TTS)
