@@ -18,7 +18,19 @@ python -m venv venv
 
 ## Architecture That Matters
 
-**Single-file FastAPI app** (`main.py`, ~540 LOC). Three global `Qwen3TTSModel` instances managed manually:
+**Modular FastAPI app** (`main.py` is a thin entrypoint; all logic lives in `app/`).
+Three global `Qwen3TTSModel` instances managed manually:
+
+```
+main.py              # thin entrypoint (imports app.main)
+app/
+  __init__.py
+  i18n.py            # OS language detection + translations (es/zh/ja/en)
+  config.py          # env vars, VRAM auto-detection, model selection
+  schemas.py         # Pydantic request/response models
+  models.py          # model lifecycle, VRAM pool, prompt serialization
+  main.py            # FastAPI app, lifespan, routes
+```
 
 | Model | Mode | VRAM | Endpoint |
 |-------|------|------|----------|
