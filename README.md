@@ -4,6 +4,10 @@ REST API for [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) with multi-model s
 
 > **Leer en español:** [README.es.md](README.es.md)
 
+## Why this project?
+
+I built this because I wanted to run **Qwen3-TTS locally** on my gaming PC with an **RTX 3060 (12 GB VRAM)**. The problem: loading all three 1.7B models simultaneously requires **~16.5 GB VRAM**, which simply doesn't fit. My solution was a **VRAM pool with lazy loading**: only one model stays hot on GPU, while the others load on demand and share the same VRAM space. This approach works perfectly for anyone with a **12 GB VRAM card** (RTX 3060, 4060, etc.) or even on **CPU with equivalent RAM** — no expensive GPU upgrade required.
+
 ## Features
 
 - **3 models in a single server:**
