@@ -1,9 +1,16 @@
 """Pytest fixtures shared across all test files."""
 
+import os
 import sys
 from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
+
+# Ensure project root is on sys.path so 'import main' works regardless of
+# how pytest is invoked (directly or via python -m pytest).
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
 
 # ---------------------------------------------------------------------------
 # Mock Qwen3TTSModel globally before any test imports app/* modules.
