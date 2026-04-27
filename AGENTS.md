@@ -86,3 +86,56 @@ Base image: `nvidia/cuda:12.6.0-runtime-ubuntu22.04`. Requires NVIDIA Container 
 - PyTorch 2.11 + CUDA 12.6
 - `qwen-tts` Python package (wraps HuggingFace Transformers)
 - pytest + fastapi.testclient for tests
+
+## Git Workflow (Git Flow)
+
+**`develop`** is the default branch. All feature work branches from and merges back into `develop`.
+
+```
+main       ●────────────────────────────────────●
+            ↑                                    ↑
+develop    ●────●────────────────────────●──────●
+                ↑                        ↑
+feature/foo    ●────●────●              ↑
+                                     ↑
+release/v1                          ●────●────●
+```
+
+### Branch rules
+
+| Branch | Purpose | Base | Merge target |
+|--------|---------|------|--------------|
+| `main` | Production releases only | — | — |
+| `develop` | Integration branch for all work | `main` | — |
+| `feature/*` | New features, fixes, refactors | `develop` | `develop` |
+| `release/v*` | Version release preparation | `develop` | `main` + `develop` |
+| `hotfix/*` | Urgent production fixes | `main` | `main` + `develop` |
+
+### Creating a feature branch
+
+```bash
+git checkout develop
+git pull origin develop
+git checkout -b feature/mi-nueva-feature
+# ... work ...
+git push -u origin feature/mi-nueva-feature
+# Open PR targeting develop
+```
+
+### Creating a release
+
+```bash
+git checkout develop
+git checkout -b release/v1.2.0
+# ... bump version, update changelog, final QA ...
+git push -u origin release/v1.2.0
+# Open PR targeting main
+# After merge, tag: git tag v1.2.0
+# Then merge back to develop
+```
+
+### Important
+
+- **Never push directly to `main` or `develop`**. Always use Pull Requests.
+- **All PRs must target `develop`** (except release/hotfix PRs targeting `main`).
+- **`main` should only contain tagged releases**.
