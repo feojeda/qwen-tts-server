@@ -245,25 +245,31 @@ def _auto_select_models(vram_gb: float) -> tuple[str, str, str]:
     Auto-select model sizes based on available VRAM.
     Returns (custom_voice, voice_design, voice_clone) model IDs.
     """
-    if vram_gb >= 12.0:
+    if vram_gb >= 11.0:
+        # 11+ GB: covers RTX 3060 12GB (reports ~11.7), RTX 4060, etc.
         return (
             "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
             "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
             "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
         )
-    elif vram_gb >= 8.0:
+    elif vram_gb >= 7.5:
+        # 7.5-10.9 GB: RTX 3070 laptop, RTX 4060 Ti 8GB, etc.
+        # Peak ~7.5 GB (0.6B hot + 1.7B lazy)
         return (
             "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
             "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
             "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
         )
-    elif vram_gb >= 6.0:
+    elif vram_gb >= 5.5:
+        # 5.5-7.4 GB: RTX 3060 laptop, RTX 2060, GTX 1660 Ti, etc.
+        # Peak ~4 GB (0.6B hot + 0.6B lazy)
         return (
             "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
             "Qwen/Qwen3-TTS-12Hz-0.6B-VoiceDesign",
             "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
         )
     else:
+        # < 5.5 GB or CPU
         return (
             "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
             "Qwen/Qwen3-TTS-12Hz-0.6B-VoiceDesign",
