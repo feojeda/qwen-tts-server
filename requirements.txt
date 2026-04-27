@@ -1,0 +1,21 @@
+# Core dependencies (CPU-compatible)
+fastapi>=0.136.0
+uvicorn>=0.46.0
+pydantic>=2.13.0
+numpy>=2.0.0
+soundfile>=0.13.0
+librosa>=0.11.0
+qwen-tts>=0.1.1
+transformers>=4.57.0
+accelerate>=1.12.0
+huggingface-hub>=0.36.0
+safetensors>=0.7.0
+requests>=2.33.0
+httpx>=0.28.0
+
+# Optional: for better performance
+# einops>=0.8.0
+
+# Testing
+pytest>=8.0.0
+httpx>=0.28.0
