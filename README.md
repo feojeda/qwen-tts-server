@@ -63,6 +63,54 @@ Server listens on `http://0.0.0.0:8000` by default.
 | `/health` | `GET` | Health check |
 | `/docs` | `GET` | Interactive documentation (Swagger UI) |
 
+## How It Works
+
+### Standard TTS Flow
+
+```
+┌─────────┐   POST /v1/audio/speech          ┌─────────────────┐
+│ Client  │ ───────────────────────────────> │  Qwen TTS Server│
+│         │  { input, voice, language }      │  (CustomVoice)  │
+│         │                                  │     [GPU HOT]   │
+│         │ <─────────────────────────────── │                 │
+│         │   audio/wav  (~5 sec)            │                 │
+└─────────┘                                  └─────────────────┘
+```
+
+### Voice Clone Flow (Stateless)
+
+The server holds **zero state**. All voice profiles live on the client.
+
+```
+Step 1: Create voice profile (one-time)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌─────────┐   POST /v1/audio/voice-clone/prompt   ┌─────────────────┐
+│ Client  │ ────────────────────────────────────> │  Qwen TTS Server│
+│         │  { ref_audio, ref_text }              │  (Base/Clone)   │
+│         │                                       │   [GPU LAZY]    │
+│         │ <──────────────────────────────────── │                 │
+│         │   { voice_clone_prompt_b64 }          │                 │
+└─────────┘                                       └─────────────────┘
+     │
+     ▼
+┌─────────────────────────────┐
+│  Client stores base64 blob  │
+│  (SQLite / Redis / etc.)    │
+└─────────────────────────────┘
+
+Step 2: Generate cloned speech (anytime, repeatedly)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌─────────┐   POST /v1/audio/voice-clone/generate   ┌─────────────────┐
+│ Client  │ ──────────────────────────────────────> │  Qwen TTS Server│
+│         │  { input, voice_clone_prompt_b64 }      │  (Base/Clone)   │
+│         │                                       │   [GPU LAZY]    │
+│         │ <──────────────────────────────────── │                 │
+│         │   audio/wav                           │                 │
+└─────────┘                                       └─────────────────┘
+```
+
 ## Examples
 
 ### TTS with predefined voice
