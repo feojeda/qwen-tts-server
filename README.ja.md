@@ -234,6 +234,10 @@ docker run -p 8000:8000 -e QWEN_TTS_DEVICE=cpu qwen-tts-server
 
 ベースイメージ：`nvidia/cuda:12.6.0-runtime-ubuntu22.04`。GPU パススルーには NVIDIA Container Toolkit が必要です。
 
+## コントリビューション
+
+PR を歓迎します。ガイドラインは英語です：[CONTRIBUTING.md](CONTRIBUTING.md)。
+
 ## ライセンス
 
 Apache 2.0（Qwen3-TTS と同じ）

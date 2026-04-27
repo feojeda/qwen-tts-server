@@ -234,6 +234,10 @@ docker run -p 8000:8000 -e QWEN_TTS_DEVICE=cpu qwen-tts-server
 
 基础镜像：`nvidia/cuda:12.6.0-runtime-ubuntu22.04`。需要 NVIDIA Container Toolkit 进行 GPU 透传。
 
+## 贡献
+
+欢迎提交 PR！贡献指南为英文：[CONTRIBUTING.md](CONTRIBUTING.md)。
+
 ## 许可证
 
 Apache 2.0（与 Qwen3-TTS 相同）

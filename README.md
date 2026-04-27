@@ -234,6 +234,10 @@ docker run -p 8000:8000 -e QWEN_TTS_DEVICE=cpu qwen-tts-server
 
 Base image: `nvidia/cuda:12.6.0-runtime-ubuntu22.04`. Requires NVIDIA Container Toolkit for GPU passthrough.
 
+## Contributing
+
+PRs are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
 ## License
 
 Apache 2.0 (same as Qwen3-TTS)

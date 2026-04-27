@@ -196,6 +196,10 @@ Base/Clone  (1.7B)  -> GPU LAZY  (~5.5 GB, excluyente)
 
 VoiceDesign y Base/Clone **nunca están cargados simultáneamente**.
 
+## Contribuir
+
+¡Los PRs son bienvenidos! Las guidelines están en inglés: [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Licencia
 
 Apache 2.0 (mismo que Qwen3-TTS)
