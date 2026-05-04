@@ -3,17 +3,29 @@
 ## Quick Start (Windows)
 
 ```powershell
-# 1. Install (one-time)
-python -m venv venv
-.\venv\Scripts\pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
-.\venv\Scripts\pip install -r requirements.txt
+# 1. Setup (one-time)
+setup.bat
 
 # 2. Run
-.\venv\Scripts\python.exe main.py        # server on :8000
-# or: .\start.bat
+start.bat
+# or: .\venv\Scripts\python.exe main.py
 
 # 3. Test (fast, no GPU needed)
 .\venv\Scripts\python.exe -m pytest tests\ -v
+```
+
+## Quick Start (Linux/Mac)
+
+```bash
+# 1. Setup (one-time)
+bash setup.sh
+
+# 2. Run
+bash start.sh
+# or: ./venv/bin/python main.py
+
+# 3. Test (fast, no GPU needed)
+./venv/bin/python -m pytest tests/ -v
 ```
 
 ## Architecture That Matters
@@ -138,11 +150,54 @@ QWEN_VOICE_CLONE_MODEL=Qwen/Qwen3-TTS-12Hz-1.7B-Base
 - **CPU mode works** but set `QWEN_TTS_DEVICE=cpu` and expect 10-30x slower generation.
 - **The `voice_clone_prompt_b64` blobs are large** (~hundreds of KB to a few MB). Don't store them in session cookies or URL params.
 
+## Flash Attention
+
+Optional. Improves inference speed and VRAM for long sequences. Not required — server uses PyTorch SDPA by default.
+
+**Linux only.** Requires compiling CUDA kernels. Not available on Windows/macOS. Requires NVIDIA GPU with compute capability ≥ 8.0 (Ampere+).
+
+### Precompiled wheel
+
+A precompiled wheel is available via GitHub Release for Linux x86_64 + Python 3.12 + CUDA 13 + Ampere GPUs (compute capability 8.x):
+
+```bash
+wget https://github.com/feojeda/qwen-tts-server/releases/download/flash-attn-v2.8.3/flash_attn-2.8.3-cp312-cp312-linux_x86_64.whl
+./venv/bin/pip install flash_attn-2.8.3-cp312-cp312-linux_x86_64.whl
+rm flash_attn-2.8.3-cp312-cp312-linux_x86_64.whl
+```
+
+This wheel is specific to: Linux x86_64, Python 3.12, CUDA 13.x, compute capability 8.x. If the environment doesn't match, users must compile from source.
+
+### Compilation (low RAM systems)
+
+```bash
+# Prerequisites
+./venv/bin/pip install ninja nvidia-cuda-nvcc
+
+# Compile — adjust ARCHS to your GPU, MAX_JOBS to your RAM
+FLASH_ATTN_CUDA_ARCHS="86" MAX_JOBS=3 ./venv/bin/pip install flash-attn --no-build-isolation
+```
+
+Common compute capabilities:
+
+| GPU | ARCHS |
+|-----|-------|
+| RTX 3060/3070/3080/3090 | `86` |
+| RTX 4060/4070/4080/4090 | `89` |
+| A100 | `80` |
+| H100 | `90` |
+
+MAX_JOBS based on RAM: 16 GB → `2-3`, 32 GB → `4-6`, 64+ GB → omit.
+
+**Stop the TTS server before compiling.** Running both causes OOM.
+
+The compiled wheel is specific to: Linux x86_64, Python version, CUDA version, and GPU architecture. It cannot be shared across different environments. Uploading pre-built wheels to the repo is not practical — each user must compile for their own system.
+
 ## Tech Stack
 
 - FastAPI + Pydantic v2
 - Uvicorn (single worker by default — requests are serialized)
-- PyTorch 2.11 + CUDA 12.6
+- PyTorch 2.11 + CUDA 13.0
 - `qwen-tts` Python package (wraps HuggingFace Transformers)
 - pytest + fastapi.testclient for tests
 

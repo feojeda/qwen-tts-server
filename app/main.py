@@ -53,7 +53,7 @@ async def lifespan(app: FastAPI):
     if VRAM_GB > 0:
         print(f"[INIT] {_t('gpu_detected')}: {torch.cuda.get_device_name(0)}")
         print(f"[INIT] {_t('vram_total')}: {VRAM_GB:.1f} GB")
-        if VRAM_GB < 12.0:
+        if VRAM_GB < 11.0:
             print(f"[INIT] {_t('vram_insufficient')}")
             print(f"[INIT] {_t('force_17b')}")
     else:

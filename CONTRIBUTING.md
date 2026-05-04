@@ -7,15 +7,12 @@ Thank you for your interest! This project started as a personal solution to run 
 ```bash
 git clone https://github.com/feojeda/qwen-tts-server.git
 cd qwen-tts-server
-python -m venv venv
 
 # Windows
-.\venv\Scripts\pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
-.\venv\Scripts\pip install -r requirements.txt
+setup.bat
 
 # Linux / Mac
-# pip install torch torchvision torchaudio
-# pip install -r requirements.txt
+bash setup.sh
 ```
 
 Run tests before submitting:

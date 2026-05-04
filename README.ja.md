@@ -25,7 +25,8 @@
 
 ## 要件
 
-- Python 3.12+
+- Python 3.10+
+- **SoX** — librosa の音声処理に必要（`setup.sh`/`setup.bat` で自動インストール）
 - GPU（オプション）：**CUDA 12.6+** をサポートし、**~12 GB VRAM** を持つ NVIDIA GPU（例：RTX 3060、RTX 4060、A100 など）
 - CPU モードも動作しますが、生成は **10-30 倍遅く** なります
 
@@ -34,16 +35,19 @@
 ```bash
 git clone <repo-url>
 cd qwen-tts-server
-python -m venv venv
 
 # Windows
-.\venv\Scripts\pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
-.\venv\Scripts\pip install -r requirements.txt
+setup.bat
 
 # Linux/Mac
-# pip install torch torchvision torchaudio
-# pip install -r requirements.txt
+bash setup.sh
 ```
+
+セットアップスクリプトは自動的に以下を行います：
+- Python 3.10+ の確認（見つからない場合はインストール手順を表示）
+- 必要に応じて `python3-venv` をインストール（Debian/Ubuntu）
+- 仮想環境の作成
+- `requirements.txt` からすべての依存関係をインストール
 
 ## 使い方
 
@@ -52,8 +56,7 @@ python -m venv venv
 start.bat
 
 # Linux/Mac
-chmod +x start.sh
-./start.sh
+bash start.sh
 ```
 
 または手動で：
@@ -207,6 +210,63 @@ $env:QWEN_TTS_DEVICE="cpu"
 
 # Linux/Mac
 QWEN_TTS_DEVICE=cpu python main.py
+```
+
+## オプション：Flash Attention
+
+[Flash Attention](https://github.com/Dao-AILab/flash-attention) は推論速度の向上と長いシーケンスでの VRAM 使用量削減に役立ちます。**必須ではありません** — サーバーは PyTorch の内蔵 SDPA で正常に動作します。
+
+> **Linux のみ。** Flash Attention は CUDA カーネルのコンパイルが必要で、Windows や macOS では利用できません。また、compute capability ≥ 8.0 の NVIDIA GPU（Ampere 以降：RTX 3000/4000、A100 など）が必要です。
+
+### クイックインストール（プリコンパイル済み wheel）
+
+**Linux x86_64 + Python 3.12 + CUDA 13 + Ampere GPU**（RTX 3060/3070/3080/3090/A100）用のプリコンパイル済み wheel が利用可能です：
+
+```bash
+# プリコンパイル済み wheel をダウンロードしてインストール
+wget https://github.com/feojeda/qwen-tts-server/releases/download/flash-attn-v2.8.3/flash_attn-2.8.3-cp312-cp312-linux_x86_64.whl
+./venv/bin/pip install flash_attn-2.8.3-cp312-cp312-linux_x86_64.whl
+rm flash_attn-2.8.3-cp312-cp312-linux_x86_64.whl
+```
+
+> この wheel はコンパイル時の環境でのみ動作します（Linux x86_64、Python 3.12、CUDA 13.x、compute capability 8.x）。環境が一致しない場合はソースからコンパイルしてください。
+
+### ソースからコンパイル（Linux、RAM < 32 GB）
+
+コンパイルは多くの RAM を使用します（並列ジョブごとに約 4-8 GB）。メモリが限られている場合は、並列ジョブ数を制限し、GPU アーキテクチャのみを対象にコンパイルしてください：
+
+```bash
+# まず ninja（高速ビルド）と nvcc をインストール
+./venv/bin/pip install ninja nvidia-cuda-nvcc
+
+# GPU のみにコンパイル、OOM を防ぐためジョブ数を制限
+FLASH_ATTN_CUDA_ARCHS="86" MAX_JOBS=3 ./venv/bin/pip install flash-attn --no-build-isolation
+```
+
+**`FLASH_ATTN_CUDA_ARCHS`** は GPU の compute capability のみカーネルをビルドするようコンパイラに指示します。ハードウェアに合わせて調整してください：
+
+| GPU シリーズ | Compute Capability | `FLASH_ATTN_CUDA_ARCHS` |
+|---|---|---|
+| RTX 3060, 3070, 3080, 3090 | 8.6 | `"86"` |
+| RTX 4060, 4070, 4080, 4090 | 8.9 | `"89"` |
+| A100, A10G | 8.0 | `"80"` |
+| H100 | 9.0 | `"90"` |
+
+**`MAX_JOBS`** はメモリ不足を防ぐため並列コンパイルジョブ数を制限します：
+
+| システム RAM | 推奨 `MAX_JOBS` |
+|---|---|
+| 16 GB | `2`–`3` |
+| 32 GB | `4`–`6` |
+| 64 GB+ | 省略（全コア使用） |
+
+> **重要：** コンパイル前に TTS サーバーを停止してください。同時に実行すると OOM kill が発生する可能性があります。
+
+### インストール（Linux、RAM ≥ 32 GB）
+
+```bash
+./venv/bin/pip install ninja nvidia-cuda-nvcc
+./venv/bin/pip install flash-attn --no-build-isolation
 ```
 
 ## テスト

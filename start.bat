@@ -1,28 +1,54 @@
 @echo off
 setlocal
 
-REM Set HuggingFace cache to project folder (E: drive) instead of C:
 set "SCRIPT_DIR=%~dp0"
 set "HF_HOME=%SCRIPT_DIR%cache\hf"
+set "HF_HUB_ENABLE_HF_TRANSFER=1"
 
 echo ==========================================
 echo    Qwen3-TTS API Server
 echo ==========================================
 echo.
-echo IMPORTANT: This server downloads AI models on first run.
-echo - CustomVoice (1.7B): ~3.4 GB download on first startup
-echo - VoiceDesign (1.7B): ~3.4 GB download on first use
-echo - Base/Clone  (1.7B): ~3.4 GB download on first use
+echo Models cached in: %HF_HOME%
 echo.
-echo Models are cached in: %HF_HOME%
-echo After first download, startup is instant.
-echo.
-echo Press any key to start the server...
-pause >nul
-echo.
-echo Starting server...
 
-.\venv\Scripts\python.exe main.py
+if exist "%SCRIPT_DIR%venv\Scripts\python.exe" (
+    set "PYTHON=%SCRIPT_DIR%venv\Scripts\python.exe"
+) else (
+    echo ERROR: Virtual environment not found.
+    echo Run setup first:  setup.bat
+    pause
+    exit /b 1
+)
+
+for /f "tokens=3" %%a in ('dir "%SCRIPT_DIR%" /-c 2^>nul ^| findstr /c:"bytes free"') do set FREE_BYTES=%%a
+if defined FREE_BYTES (
+    set /a FREE_GB=%FREE_BYTES:~0,-9%
+    if %FREE_GB% LSS 10 (
+        echo ERROR: Insufficient disk space for AI models.
+        echo   Available: ~%FREE_GB% GB
+        echo   Required:  ~10 GB
+        echo.
+        echo Models are cached in: %HF_HOME%
+        echo Free up space or move HF_HOME to another drive.
+        pause
+        exit /b 1
+    )
+    echo Disk space: ~%FREE_GB% GB available
+)
+
+echo.
+echo Checking models...
+"%PYTHON%" "%SCRIPT_DIR%scripts/pre_download.py"
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo ERROR: Model download failed. Check your connection and retry.
+    pause
+    exit /b 1
+)
+
+echo Starting server...
+"%PYTHON%" "%SCRIPT_DIR%main.py"
 
 pause
 endlocal
