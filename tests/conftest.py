@@ -54,6 +54,21 @@ if not _integration_mode:
     _mock_instance.get_supported_languages.return_value = ["English", "Spanish"]
     _mock_model_cls.from_pretrained.return_value = _mock_instance
     sys.modules["qwen_tts"] = MagicMock(Qwen3TTSModel=_mock_model_cls)
+else:
+    # Pre-download models with robust resume before integration tests run.
+    # from_pretrained()'s built-in downloader can hang on large files;
+    # snapshot_download uses hf_transfer + Range-resume and is reliable.
+    print("[INTEGRATION] Pre-downloading models with resume support...")
+    try:
+        from huggingface_hub import snapshot_download
+        from app.config import CUSTOM_VOICE_MODEL, VOICE_DESIGN_MODEL, VOICE_CLONE_MODEL
+        for model_id in [CUSTOM_VOICE_MODEL, VOICE_DESIGN_MODEL, VOICE_CLONE_MODEL]:
+            print(f"[INTEGRATION] Ensuring cached: {model_id}")
+            snapshot_download(repo_id=model_id)
+        print("[INTEGRATION] All models cached.")
+    except Exception as e:
+        print(f"[INTEGRATION] Pre-download warning: {e}")
+        print("[INTEGRATION] Continuing anyway; from_pretrained() will attempt download.")
 
 # Now safe to import the FastAPI app
 from main import app as fastapi_app  # noqa: E402
