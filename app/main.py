@@ -31,6 +31,7 @@ from app.schemas import (
     ModelInfo,
     ModelList,
 )
+from app.metrics import metrics
 from app import models as app_models
 from app.models import (
     last_used,
@@ -91,6 +92,17 @@ app = FastAPI(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+def _speech_tokens_from_audio(wav: np.ndarray, sr: int) -> int:
+    """Approximate speech tokens from audio duration.
+
+    Qwen3-TTS-Tokenizer-12Hz → 12.5 tokens/second
+    Qwen3-TTS-Tokenizer-25Hz → 25 tokens/second
+    """
+    duration = len(wav) / sr
+    # Default to 12.5 Hz; all currently deployed models are 12Hz variants.
+    return int(duration * 12.5)
+
+
 def _audio_to_bytes(wav: np.ndarray, sr: int, fmt: str) -> tuple[bytes, str]:
     fmt = fmt.lower()
     mime_map = {
@@ -135,6 +147,7 @@ def root():
             "POST /v1/audio/voice-clone/generate",
             "GET  /v1/models",
             "GET  /v1/audio/voices",
+            "GET  /v1/metrics",
             "GET  /health",
             "GET  /docs",
         ],
@@ -203,6 +216,7 @@ def create_speech(body: CreateSpeechRequest):
 
         wav = wavs[0]
         audio_bytes, mime_type = _audio_to_bytes(wav, sr, body.response_format)
+        metrics.record(text_input=body.input, audio_duration_seconds=len(wav)/sr, speech_tokens=_speech_tokens_from_audio(wav, sr))
 
         return StreamingResponse(
             io.BytesIO(audio_bytes),
@@ -212,6 +226,7 @@ def create_speech(body: CreateSpeechRequest):
             },
         )
     except Exception as e:
+        metrics.record(text_input=body.input, audio_duration_seconds=0.0, speech_tokens=0, error=True)
         raise HTTPException(500, f"TTS generation failed: {e}")
 
 
@@ -230,6 +245,7 @@ def create_voice_design(body: VoiceDesignRequest):
 
         wav = wavs[0]
         audio_bytes, mime_type = _audio_to_bytes(wav, sr, body.response_format)
+        metrics.record(text_input=body.input, audio_duration_seconds=len(wav)/sr, speech_tokens=_speech_tokens_from_audio(wav, sr))
 
         return StreamingResponse(
             io.BytesIO(audio_bytes),
@@ -239,6 +255,7 @@ def create_voice_design(body: VoiceDesignRequest):
             },
         )
     except Exception as e:
+        metrics.record(text_input=body.input, audio_duration_seconds=0.0, speech_tokens=0, error=True)
         raise HTTPException(500, f"Voice design failed: {e}")
 
 
@@ -275,6 +292,7 @@ def create_voice_clone(body: VoiceCloneRequest):
 
         wav = wavs[0]
         audio_bytes, mime_type = _audio_to_bytes(wav, sr, body.response_format)
+        metrics.record(text_input=body.input, audio_duration_seconds=len(wav)/sr, speech_tokens=_speech_tokens_from_audio(wav, sr))
 
         return StreamingResponse(
             io.BytesIO(audio_bytes),
@@ -285,6 +303,7 @@ def create_voice_clone(body: VoiceCloneRequest):
         )
     except Exception as e:
         import traceback
+        metrics.record(text_input=body.input, audio_duration_seconds=0.0, speech_tokens=0, error=True)
         print(f"[ERROR] {_t('error_clone')}:")
         traceback.print_exc()
         raise HTTPException(500, f"Voice clone failed: {e}")
@@ -339,6 +358,7 @@ def generate_voice_clone_from_prompt(body: GenerateVoiceCloneFromPromptRequest):
 
         wav = wavs[0]
         audio_bytes, mime_type = _audio_to_bytes(wav, sr, body.response_format)
+        metrics.record(text_input=body.input, audio_duration_seconds=len(wav)/sr, speech_tokens=_speech_tokens_from_audio(wav, sr))
 
         return StreamingResponse(
             io.BytesIO(audio_bytes),
@@ -349,6 +369,13 @@ def generate_voice_clone_from_prompt(body: GenerateVoiceCloneFromPromptRequest):
         )
     except Exception as e:
         import traceback
+        metrics.record(text_input=body.input, audio_duration_seconds=0.0, speech_tokens=0, error=True)
         print(f"[ERROR] {_t('error_generate')}:")
         traceback.print_exc()
         raise HTTPException(500, f"Voice clone generation from prompt failed: {e}")
+
+
+@app.get("/v1/metrics")
+def get_metrics():
+    """Return server usage metrics (tokens processed, requests served, etc.)."""
+    return metrics.snapshot()

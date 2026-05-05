@@ -25,6 +25,18 @@ class TestHealth:
         assert data["models_loaded"]["custom_voice"] is True
 
 
+class TestMetrics:
+    def test_metrics(self, client):
+        response = client.get("/v1/metrics")
+        assert response.status_code == 200
+        data = response.json()
+        assert "requests_total" in data
+        assert "text_chars_total" in data
+        assert "speech_tokens_total" in data
+        assert "audio_seconds_total" in data
+        assert "uptime_seconds" in data
+
+
 class TestModels:
     def test_list_models(self, client):
         response = client.get("/v1/models")
