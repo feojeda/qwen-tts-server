@@ -12,6 +12,10 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+# Use the same HF cache directory as start.sh so integration tests
+# reuse already-downloaded models instead of re-downloading.
+os.environ.setdefault("HF_HOME", os.path.join(ROOT, "cache", "hf"))
+
 
 def pytest_addoption(parser):
     parser.addoption(
