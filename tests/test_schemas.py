@@ -64,6 +64,17 @@ class TestVoiceCloneRequest:
             response_format="wav",
         )
         assert req.ref_audio == "https://example.com/audio.wav"
+        assert req.x_vector_only_mode is False
+
+    def test_x_vector_only_mode(self):
+        req = VoiceCloneRequest(
+            model="qwen3-tts",
+            input="Hello",
+            ref_audio="https://example.com/audio.wav",
+            ref_text="Hello",
+            x_vector_only_mode=True,
+        )
+        assert req.x_vector_only_mode is True
 
     def test_missing_required(self):
         with pytest.raises(ValidationError):

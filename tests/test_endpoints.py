@@ -120,6 +120,39 @@ class TestVoiceClone:
         })
         assert response.status_code == 200
         assert len(response.content) > 0
+        # Verify default path (x_vector_only_mode=False) uses direct ref_audio/ref_text
+        mock_model.generate_voice_clone.assert_called_once()
+        call_kwargs = mock_model.generate_voice_clone.call_args.kwargs
+        assert "ref_audio" in call_kwargs
+        assert "voice_clone_prompt" not in call_kwargs
+
+    def test_create_x_vector_only_mode(self, client, mock_wav, mock_model):
+        wav, sr = mock_wav
+        mock_model.generate_voice_clone.return_value = ([wav], sr)
+        fake_prompt = [{"ref_spk_embedding": [0.1]}]
+        mock_model.create_voice_clone_prompt.return_value = fake_prompt
+
+        response = client.post("/v1/audio/voice-clone", json={
+            "model": "qwen3-tts",
+            "input": "Hello world",
+            "ref_audio": "https://example.com/audio.wav",
+            "ref_text": "Hello world",
+            "language": "English",
+            "response_format": "wav",
+            "x_vector_only_mode": True,
+        })
+        assert response.status_code == 200
+        assert len(response.content) > 0
+        # Verify two-step path was used
+        mock_model.create_voice_clone_prompt.assert_called_once_with(
+            ref_audio="https://example.com/audio.wav",
+            ref_text="Hello world",
+            x_vector_only_mode=True,
+        )
+        # Check the last call to generate_voice_clone used voice_clone_prompt
+        last_call = mock_model.generate_voice_clone.call_args
+        assert "voice_clone_prompt" in last_call.kwargs
+        assert last_call.kwargs["voice_clone_prompt"] == fake_prompt
 
 
 class TestVoiceClonePrompt:

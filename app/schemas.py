@@ -34,6 +34,7 @@ class VoiceCloneRequest(BaseModel):
     language: Optional[str] = Field("Auto", description="Language code.")
     ref_audio: str = Field(..., description="Reference audio file path, URL, or base64 string.")
     ref_text: Optional[str] = Field(None, description="Transcript of the reference audio.")
+    x_vector_only_mode: bool = Field(False, description="If true, only timbre is cloned (native prosody/fonética del idioma destino). Slower but better cross-lingual pronunciation.")
 
 
 class CreateVoiceClonePromptRequest(BaseModel):
