@@ -25,7 +25,8 @@
 
 ## 系统要求
 
-- Python 3.12+
+- Python 3.10+
+- **SoX** — librosa 音频处理所需（`setup.sh`/`setup.bat` 自动安装）
 - GPU（可选）：任何支持 **CUDA 12.6+** 且拥有 **~12 GB VRAM** 的 NVIDIA GPU（如 RTX 3060、RTX 4060、A100 等）
 - CPU 模式也可用，但生成速度 **慢 10-30 倍**
 
@@ -34,16 +35,19 @@
 ```bash
 git clone <repo-url>
 cd qwen-tts-server
-python -m venv venv
 
 # Windows
-.\venv\Scripts\pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
-.\venv\Scripts\pip install -r requirements.txt
+setup.bat
 
 # Linux/Mac
-# pip install torch torchvision torchaudio
-# pip install -r requirements.txt
+bash setup.sh
 ```
+
+安装脚本会自动：
+- 检查 Python 3.10+（如果缺失会显示安装说明）
+- 如有需要安装 `python3-venv`（Debian/Ubuntu）
+- 创建虚拟环境
+- 从 `requirements.txt` 安装所有依赖
 
 ## 使用方法
 
@@ -52,8 +56,7 @@ python -m venv venv
 start.bat
 
 # Linux/Mac
-chmod +x start.sh
-./start.sh
+bash start.sh
 ```
 
 或手动运行：
@@ -207,6 +210,63 @@ $env:QWEN_TTS_DEVICE="cpu"
 
 # Linux/Mac
 QWEN_TTS_DEVICE=cpu python main.py
+```
+
+## 可选：Flash Attention
+
+[Flash Attention](https://github.com/Dao-AILab/flash-attention) 可以提高推理速度并减少长序列的 VRAM 使用。它**不是必需的** — 服务器使用 PyTorch 内置的 SDPA 即可正常运行。
+
+> **仅限 Linux。** Flash Attention 需要编译 CUDA 内核，不支持 Windows 或 macOS。还需要 compute capability ≥ 8.0 的 NVIDIA GPU（Ampere 或更新：RTX 3000/4000、A100 等）。
+
+### 快速安装（预编译 wheel）
+
+提供预编译 wheel，适用于 **Linux x86_64 + Python 3.12 + CUDA 13 + Ampere GPU**（RTX 3060/3070/3080/3090/A100）：
+
+```bash
+# 下载并安装预编译 wheel
+wget https://github.com/feojeda/qwen-tts-server/releases/download/flash-attn-v2.8.3/flash_attn-2.8.3-cp312-cp312-linux_x86_64.whl
+./venv/bin/pip install flash_attn-2.8.3-cp312-cp312-linux_x86_64.whl
+rm flash_attn-2.8.3-cp312-cp312-linux_x86_64.whl
+```
+
+> 此 wheel 仅适用于编译时的精确环境（Linux x86_64、Python 3.12、CUDA 13.x、compute capability 8.x）。如不匹配，请从源码编译。
+
+### 从源码编译（Linux，RAM < 32 GB）
+
+编译会占用大量 RAM（每个并行任务约 4-8 GB）。如果系统内存有限，请限制并行任务数并仅针对你的 GPU 架构编译：
+
+```bash
+# 先安装 ninja（更快构建）和 nvcc
+./venv/bin/pip install ninja nvidia-cuda-nvcc
+
+# 仅针对你的 GPU 编译，限制并行任务避免 OOM
+FLASH_ATTN_CUDA_ARCHS="86" MAX_JOBS=3 ./venv/bin/pip install flash-attn --no-build-isolation
+```
+
+**`FLASH_ATTN_CUDA_ARCHS`** 告诉编译器仅为你 GPU 的 compute capability 构建内核。根据硬件调整：
+
+| GPU 系列 | Compute Capability | `FLASH_ATTN_CUDA_ARCHS` |
+|---|---|---|
+| RTX 3060, 3070, 3080, 3090 | 8.6 | `"86"` |
+| RTX 4060, 4070, 4080, 4090 | 8.9 | `"89"` |
+| A100, A10G | 8.0 | `"80"` |
+| H100 | 9.0 | `"90"` |
+
+**`MAX_JOBS`** 限制并行编译任务数以避免内存不足：
+
+| 系统内存 | 推荐 `MAX_JOBS` |
+|---|---|
+| 16 GB | `2`–`3` |
+| 32 GB | `4`–`6` |
+| 64 GB+ | 省略（使用所有核心） |
+
+> **重要：** 编译前请停止 TTS 服务器。同时运行两者可能导致 OOM kill。
+
+### 安装（Linux，RAM ≥ 32 GB）
+
+```bash
+./venv/bin/pip install ninja nvidia-cuda-nvcc
+./venv/bin/pip install flash-attn --no-build-isolation
 ```
 
 ## 测试

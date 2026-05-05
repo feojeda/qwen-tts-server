@@ -25,8 +25,8 @@ Creé esto porque quería correr **Qwen3-TTS en local** en mi PC gamer con una *
 
 ## Requisitos
 
-- Python 3.12+
-- CUDA 12.6+ (para GPU)
+- Python 3.10+
+- **SoX** — requerido por librosa para procesamiento de audio (se instala automáticamente con `setup.sh`/`setup.bat`)
 - ~12 GB VRAM (RTX 3060 o superior recomendado)
 
 ## Instalación
@@ -34,16 +34,19 @@ Creé esto porque quería correr **Qwen3-TTS en local** en mi PC gamer con una *
 ```bash
 git clone <repo-url>
 cd qwen-tts-server
-python -m venv venv
 
 # Windows
-.\venv\Scripts\pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
-.\venv\Scripts\pip install -r requirements.txt
+setup.bat
 
 # Linux/Mac
-# pip install torch torchvision torchaudio
-# pip install -r requirements.txt
+bash setup.sh
 ```
+
+El script de setup automáticamente:
+- Verifica Python 3.10+ (muestra instrucciones de instalación si no lo encuentra)
+- Instala `python3-venv` si es necesario (Debian/Ubuntu)
+- Crea un entorno virtual
+- Instala todas las dependencias de `requirements.txt`
 
 ## Uso
 
@@ -52,8 +55,7 @@ python -m venv venv
 start.bat
 
 # Linux/Mac
-chmod +x start.sh
-./start.sh
+bash start.sh
 ```
 
 O manualmente:
@@ -199,6 +201,63 @@ VoiceDesign y Base/Clone **nunca están cargados simultáneamente**.
 ## Contribuir
 
 ¡Los PRs son bienvenidos! Las guidelines están en inglés: [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Opcional: Flash Attention
+
+[Flash Attention](https://github.com/Dao-AILab/flash-attention) puede mejorar la velocidad de inferencia y reducir el uso de VRAM en secuencias largas. **No es obligatorio** — el servidor funciona bien sin él usando SDPA integrado de PyTorch.
+
+> **Solo Linux.** Flash Attention requiere compilar kernels CUDA y no está disponible en Windows ni macOS. También requiere una GPU NVIDIA con compute capability ≥ 8.0 (Ampere o superior: RTX 3000/4000, A100, etc.).
+
+### Instalación rápida (wheel precompilado)
+
+Hay un wheel precompilado disponible para **Linux x86_64 + Python 3.12 + CUDA 13 + GPUs Ampere** (RTX 3060/3070/3080/3090/A100):
+
+```bash
+# Descargar e instalar el wheel precompilado
+wget https://github.com/feojeda/qwen-tts-server/releases/download/flash-attn-v2.8.3/flash_attn-2.8.3-cp312-cp312-linux_x86_64.whl
+./venv/bin/pip install flash_attn-2.8.3-cp312-cp312-linux_x86_64.whl
+rm flash_attn-2.8.3-cp312-cp312-linux_x86_64.whl
+```
+
+> Este wheel solo funciona en el entorno exacto para el que fue compilado (Linux x86_64, Python 3.12, CUDA 13.x, compute capability 8.x). Si no coincide con tu configuración, compilá desde el código fuente.
+
+### Compilar desde el código (Linux, con < 32 GB RAM)
+
+La compilación usa mucha RAM (~4-8 GB por job paralelo). Si tu sistema tiene RAM limitada, restringí la cantidad de jobs y compilá solo para la arquitectura de tu GPU:
+
+```bash
+# Primero instalá ninja (builds más rápidos) y nvcc
+./venv/bin/pip install ninja nvidia-cuda-nvcc
+
+# Compilar solo para tu GPU, limitar jobs para evitar OOM
+FLASH_ATTN_CUDA_ARCHS="86" MAX_JOBS=3 ./venv/bin/pip install flash-attn --no-build-isolation
+```
+
+**`FLASH_ATTN_CUDA_ARCHS`** le dice al compilador que genere kernels solo para la compute capability de tu GPU. Ajustalo según tu hardware:
+
+| Serie GPU | Compute Capability | `FLASH_ATTN_CUDA_ARCHS` |
+|---|---|---|
+| RTX 3060, 3070, 3080, 3090 | 8.6 | `"86"` |
+| RTX 4060, 4070, 4080, 4090 | 8.9 | `"89"` |
+| A100, A10G | 8.0 | `"80"` |
+| H100 | 9.0 | `"90"` |
+
+**`MAX_JOBS`** limita los jobs de compilación paralelos para evitar quedarse sin RAM:
+
+| RAM del sistema | `MAX_JOBS` recomendado |
+|---|---|
+| 16 GB | `2`–`3` |
+| 32 GB | `4`–`6` |
+| 64 GB+ | Omitir (usa todos los cores) |
+
+> **Importante:** Detené el servidor TTS antes de compilar. Ejecutar ambos simultáneamente puede causar un OOM kill.
+
+### Instalar (Linux, con 32+ GB RAM)
+
+```bash
+./venv/bin/pip install ninja nvidia-cuda-nvcc
+./venv/bin/pip install flash-attn --no-build-isolation
+```
 
 ## Testing
 
