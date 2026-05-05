@@ -12,6 +12,13 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+# Use the same HF cache directory as start.sh so integration tests
+# reuse already-downloaded models instead of re-downloading.
+os.environ.setdefault("HF_HOME", os.path.join(ROOT, "cache", "hf"))
+
+# Enable hf_transfer for parallel chunked downloads (2-5x faster).
+os.environ.setdefault("HF_HUB_ENABLE_HF_TRANSFER", "1")
+
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -50,6 +57,21 @@ if not _integration_mode:
     _mock_instance.get_supported_languages.return_value = ["English", "Spanish"]
     _mock_model_cls.from_pretrained.return_value = _mock_instance
     sys.modules["qwen_tts"] = MagicMock(Qwen3TTSModel=_mock_model_cls)
+else:
+    # Pre-download models with robust resume before integration tests run.
+    # from_pretrained()'s built-in downloader can hang on large files;
+    # snapshot_download uses hf_transfer + Range-resume and is reliable.
+    print("[INTEGRATION] Pre-downloading models with resume support...")
+    try:
+        from huggingface_hub import snapshot_download
+        from app.config import CUSTOM_VOICE_MODEL, VOICE_DESIGN_MODEL, VOICE_CLONE_MODEL
+        for model_id in [CUSTOM_VOICE_MODEL, VOICE_DESIGN_MODEL, VOICE_CLONE_MODEL]:
+            print(f"[INTEGRATION] Ensuring cached: {model_id}")
+            snapshot_download(repo_id=model_id)
+        print("[INTEGRATION] All models cached.")
+    except Exception as e:
+        print(f"[INTEGRATION] Pre-download warning: {e}")
+        print("[INTEGRATION] Continuing anyway; from_pretrained() will attempt download.")
 
 # Now safe to import the FastAPI app
 from main import app as fastapi_app  # noqa: E402

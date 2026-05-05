@@ -247,12 +247,29 @@ def create_voice_clone(body: VoiceCloneRequest):
     try:
         mdl = _get_voice_clone()
         start = time.time()
-        wavs, sr = mdl.generate_voice_clone(
-            text=body.input,
-            language=body.language or "Auto",
-            ref_audio=body.ref_audio,
-            ref_text=body.ref_text or "",
-        )
+
+        if body.x_vector_only_mode:
+            # Two-step: create prompt with timbre only, then generate
+            print("[INFO] x_vector_only_mode=True — using timbre-only clone")
+            prompt_items = mdl.create_voice_clone_prompt(
+                ref_audio=body.ref_audio,
+                ref_text=body.ref_text or "",
+                x_vector_only_mode=True,
+            )
+            wavs, sr = mdl.generate_voice_clone(
+                text=body.input,
+                language=body.language or "Auto",
+                voice_clone_prompt=prompt_items,
+            )
+        else:
+            # Original behavior (timbre + prosody from reference)
+            wavs, sr = mdl.generate_voice_clone(
+                text=body.input,
+                language=body.language or "Auto",
+                ref_audio=body.ref_audio,
+                ref_text=body.ref_text or "",
+            )
+
         elapsed = time.time() - start
         print(f"[INFO] {_t('voiceclone_gen')} {elapsed:.2f}s")
 
@@ -285,7 +302,7 @@ def create_voice_clone_prompt(body: CreateVoiceClonePromptRequest):
         print(f"[PROMPT] {_t('calculating_prompt')}...")
         prompt_items = mdl.create_voice_clone_prompt(
             ref_audio=body.ref_audio,
-            ref_text=body.ref_text,
+            ref_text=body.ref_text or "",
             x_vector_only_mode=body.x_vector_only_mode,
         )
         elapsed = time.time() - start

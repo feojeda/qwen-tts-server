@@ -88,6 +88,43 @@ class TestVoiceCloneIntegration:
         assert resp.status_code == 200
         assert len(resp.content) > 0
 
+    def test_generate_direct_x_vector_only(self, client):
+        """Direct voice clone with x_vector_only_mode (timbre-only, no ref_text)."""
+        resp = client.post("/v1/audio/voice-clone", json={
+            "model": "qwen3-tts",
+            "input": "Direct voice clone with timbre only.",
+            "ref_audio": REF_AUDIO_URL,
+            "language": "English",
+            "response_format": "wav",
+            "x_vector_only_mode": True,
+        })
+        assert resp.status_code == 200
+        assert len(resp.content) > 0
+
+    def test_create_and_generate_prompt_x_vector_only(self, client):
+        """Create timbre-only prompt without ref_text, then generate speech."""
+        # 1. Create prompt without ref_text
+        prompt_resp = client.post("/v1/audio/voice-clone/prompt", json={
+            "ref_audio": REF_AUDIO_URL,
+            "x_vector_only_mode": True,
+        })
+        assert prompt_resp.status_code == 200
+        data = prompt_resp.json()
+        assert "voice_clone_prompt_b64" in data
+        assert len(data["voice_clone_prompt_b64"]) > 100
+        b64_prompt = data["voice_clone_prompt_b64"]
+
+        # 2. Generate from prompt
+        gen_resp = client.post("/v1/audio/voice-clone/generate", json={
+            "model": "qwen3-tts",
+            "input": "This is my cloned voice speaking in timbre-only mode.",
+            "voice_clone_prompt_b64": b64_prompt,
+            "language": "English",
+            "response_format": "wav",
+        })
+        assert gen_resp.status_code == 200
+        assert len(gen_resp.content) > 0
+
 
 @pytest.mark.integration
 class TestVoiceDesignIntegration:
