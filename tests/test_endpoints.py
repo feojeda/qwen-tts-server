@@ -35,6 +35,7 @@ class TestMetrics:
         assert "speech_tokens_total" in data
         assert "audio_seconds_total" in data
         assert "uptime_seconds" in data
+        assert "models" in data
 
 
 class TestModels:

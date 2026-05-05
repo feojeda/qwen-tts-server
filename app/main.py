@@ -216,7 +216,7 @@ def create_speech(body: CreateSpeechRequest):
 
         wav = wavs[0]
         audio_bytes, mime_type = _audio_to_bytes(wav, sr, body.response_format)
-        metrics.record(text_input=body.input, audio_duration_seconds=len(wav)/sr, speech_tokens=_speech_tokens_from_audio(wav, sr))
+        metrics.record(model=CUSTOM_VOICE_MODEL, text_input=body.input, audio_duration_seconds=len(wav)/sr, speech_tokens=_speech_tokens_from_audio(wav, sr))
 
         return StreamingResponse(
             io.BytesIO(audio_bytes),
@@ -226,7 +226,7 @@ def create_speech(body: CreateSpeechRequest):
             },
         )
     except Exception as e:
-        metrics.record(text_input=body.input, audio_duration_seconds=0.0, speech_tokens=0, error=True)
+        metrics.record(model=CUSTOM_VOICE_MODEL, text_input=body.input, audio_duration_seconds=0.0, speech_tokens=0, error=True)
         raise HTTPException(500, f"TTS generation failed: {e}")
 
 
@@ -245,7 +245,7 @@ def create_voice_design(body: VoiceDesignRequest):
 
         wav = wavs[0]
         audio_bytes, mime_type = _audio_to_bytes(wav, sr, body.response_format)
-        metrics.record(text_input=body.input, audio_duration_seconds=len(wav)/sr, speech_tokens=_speech_tokens_from_audio(wav, sr))
+        metrics.record(model=VOICE_DESIGN_MODEL, text_input=body.input, audio_duration_seconds=len(wav)/sr, speech_tokens=_speech_tokens_from_audio(wav, sr))
 
         return StreamingResponse(
             io.BytesIO(audio_bytes),
@@ -255,7 +255,7 @@ def create_voice_design(body: VoiceDesignRequest):
             },
         )
     except Exception as e:
-        metrics.record(text_input=body.input, audio_duration_seconds=0.0, speech_tokens=0, error=True)
+        metrics.record(model=VOICE_DESIGN_MODEL, text_input=body.input, audio_duration_seconds=0.0, speech_tokens=0, error=True)
         raise HTTPException(500, f"Voice design failed: {e}")
 
 
@@ -292,7 +292,7 @@ def create_voice_clone(body: VoiceCloneRequest):
 
         wav = wavs[0]
         audio_bytes, mime_type = _audio_to_bytes(wav, sr, body.response_format)
-        metrics.record(text_input=body.input, audio_duration_seconds=len(wav)/sr, speech_tokens=_speech_tokens_from_audio(wav, sr))
+        metrics.record(model=VOICE_CLONE_MODEL, text_input=body.input, audio_duration_seconds=len(wav)/sr, speech_tokens=_speech_tokens_from_audio(wav, sr))
 
         return StreamingResponse(
             io.BytesIO(audio_bytes),
@@ -303,7 +303,7 @@ def create_voice_clone(body: VoiceCloneRequest):
         )
     except Exception as e:
         import traceback
-        metrics.record(text_input=body.input, audio_duration_seconds=0.0, speech_tokens=0, error=True)
+        metrics.record(model=VOICE_CLONE_MODEL, text_input=body.input, audio_duration_seconds=0.0, speech_tokens=0, error=True)
         print(f"[ERROR] {_t('error_clone')}:")
         traceback.print_exc()
         raise HTTPException(500, f"Voice clone failed: {e}")
@@ -358,7 +358,7 @@ def generate_voice_clone_from_prompt(body: GenerateVoiceCloneFromPromptRequest):
 
         wav = wavs[0]
         audio_bytes, mime_type = _audio_to_bytes(wav, sr, body.response_format)
-        metrics.record(text_input=body.input, audio_duration_seconds=len(wav)/sr, speech_tokens=_speech_tokens_from_audio(wav, sr))
+        metrics.record(model=VOICE_CLONE_MODEL, text_input=body.input, audio_duration_seconds=len(wav)/sr, speech_tokens=_speech_tokens_from_audio(wav, sr))
 
         return StreamingResponse(
             io.BytesIO(audio_bytes),
@@ -369,7 +369,7 @@ def generate_voice_clone_from_prompt(body: GenerateVoiceCloneFromPromptRequest):
         )
     except Exception as e:
         import traceback
-        metrics.record(text_input=body.input, audio_duration_seconds=0.0, speech_tokens=0, error=True)
+        metrics.record(model=VOICE_CLONE_MODEL, text_input=body.input, audio_duration_seconds=0.0, speech_tokens=0, error=True)
         print(f"[ERROR] {_t('error_generate')}:")
         traceback.print_exc()
         raise HTTPException(500, f"Voice clone generation from prompt failed: {e}")
