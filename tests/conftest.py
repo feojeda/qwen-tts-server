@@ -16,6 +16,9 @@ if ROOT not in sys.path:
 # reuse already-downloaded models instead of re-downloading.
 os.environ.setdefault("HF_HOME", os.path.join(ROOT, "cache", "hf"))
 
+# Enable hf_transfer for parallel chunked downloads (2-5x faster).
+os.environ.setdefault("HF_HUB_ENABLE_HF_TRANSFER", "1")
+
 
 def pytest_addoption(parser):
     parser.addoption(
