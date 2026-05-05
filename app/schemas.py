@@ -33,14 +33,14 @@ class VoiceCloneRequest(BaseModel):
     response_format: str = Field("mp3", description="Audio format.")
     language: Optional[str] = Field("Auto", description="Language code.")
     ref_audio: str = Field(..., description="Reference audio file path, URL, or base64 string.")
-    ref_text: Optional[str] = Field(None, description="Transcript of the reference audio.")
-    x_vector_only_mode: bool = Field(False, description="If true, only timbre is cloned (native prosody/fonética del idioma destino). Slower but better cross-lingual pronunciation.")
+    ref_text: Optional[str] = Field(None, description="Transcript of the reference audio. Required when x_vector_only_mode=False.")
+    x_vector_only_mode: bool = Field(False, description="If true, only speaker timbre is cloned. The model uses its own native prosody and phonetics for the target language, which improves cross-lingual pronunciation quality.")
 
 
 class CreateVoiceClonePromptRequest(BaseModel):
     ref_audio: str = Field(..., description="Reference audio file path, URL, or base64 string.")
-    ref_text: str = Field(..., description="Transcript of the reference audio.")
-    x_vector_only_mode: bool = Field(False, description="If true, only speaker embedding is used (faster, lower quality).")
+    ref_text: Optional[str] = Field(None, description="Transcript of the reference audio. Required when x_vector_only_mode=False.")
+    x_vector_only_mode: bool = Field(False, description="If true, only speaker timbre is cloned. The model uses its own native prosody and phonetics for the target language, which improves cross-lingual pronunciation quality.")
 
 
 class VoiceClonePromptResponse(BaseModel):

@@ -2,6 +2,7 @@
 
 import base64
 import pickle
+import pytest
 
 
 class TestRoot:
@@ -102,6 +103,10 @@ class TestVoiceDesign:
 
 
 class TestVoiceClone:
+    @pytest.fixture(autouse=True)
+    def _reset_mock(self, mock_model):
+        mock_model.reset_mock()
+
     def test_schema_invalid(self, client):
         response = client.post("/v1/audio/voice-clone", json={})
         assert response.status_code == 422

@@ -302,7 +302,7 @@ def create_voice_clone_prompt(body: CreateVoiceClonePromptRequest):
         print(f"[PROMPT] {_t('calculating_prompt')}...")
         prompt_items = mdl.create_voice_clone_prompt(
             ref_audio=body.ref_audio,
-            ref_text=body.ref_text,
+            ref_text=body.ref_text or "",
             x_vector_only_mode=body.x_vector_only_mode,
         )
         elapsed = time.time() - start
