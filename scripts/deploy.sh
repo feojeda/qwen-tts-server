@@ -6,6 +6,12 @@ APP_NAME="qwen-tts-server"
 BASE_DIR="/opt/${APP_NAME}"
 CURRENT_LINK="${BASE_DIR}/current"
 
+for f in /etc/nomad.d/.acl.env /etc/qwen-tts-server/consul.env; do
+    if [ -f "${f}" ]; then
+        set -a; source "${f}"; set +a
+    fi
+done
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
